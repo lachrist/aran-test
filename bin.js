@@ -10,6 +10,11 @@ if (process.argv.length !== 4) {
 
 const sanitize = (filename) => filename !== ".DS_Store";
 const trailing = (pathname) => pathname[pathname.length-1] === "/" ? pathname : pathname + "/";
+const trail = (string, size) => {
+  while (string.length < size)
+    string += " ";
+  return string;
+};
 
 if (/\.js$/.test(process.argv[3])) {
   const Advice = require(Path.resolve(process.argv[2]));
@@ -18,9 +23,9 @@ if (/\.js$/.test(process.argv[3])) {
     Fs.readFileSync(process.argv[3], "utf8"));
   console.log(test.script);
   if ("value" in test) {
-    console.log("Success "+JSON.stringify(test.value, null, 2));
+    console.log("success", test.value);
   } else {
-    console.log("Failure "+JSON.stringify(test.error, null, 2));
+    console.log("failure", test.error);
   }
 } else {
   const Advice = require(Path.resolve(process.argv[2]));
@@ -29,16 +34,16 @@ if (/\.js$/.test(process.argv[3])) {
     const test = AranTest(
       Advice,
       Fs.readFileSync(trailing(process.argv[3])+filename, "utf8"));
-    test.filename = filename;
-    delete test.script;
-    console.log(
-      JSON.stringify(test, null, 2));
-    if (test.failure)
+    if ("value" in test) {
+      console.log(trail(filename, 25), "success", test.value);
+    } else {
+      console.log(trail(filename, 25), "failure", test.error);
       failures[failures.length] = filename;
+    }
   });
   if (failures.length) {
-    console.log("No failure")
+    console.log("\nFailures:\n  "+failures.join("\n  "));
   } else {
-    console.log("Failures:\n"+failures.join("\n"));
+    console.log("No failure");
   }
 }

@@ -2,6 +2,6 @@
 (function () {
   var o = {a:1};
   delete o.a;
-  if ('a' in o)
-    throw 'MemberDelete';
+  if ("a" in o)
+    throw "MemberDelete";
 } ());

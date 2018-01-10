@@ -3,7 +3,7 @@
   var o = {
     f: function () {
       if (this !== o)
-        throw 'MemberCall';
+        throw "MemberCall";
     }
   }
   o.f();

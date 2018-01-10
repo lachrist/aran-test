@@ -4,6 +4,6 @@
   while (b) {
     b = false;
     continue;
-    throw 'Continue';
+    throw "Continue";
   }
 } ());

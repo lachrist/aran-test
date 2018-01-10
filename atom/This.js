@@ -3,7 +3,7 @@
   var o = {
     f:function () {
       if (this !== o)
-        throw 'This';
+        throw "This";
     }
   }
   o.f();

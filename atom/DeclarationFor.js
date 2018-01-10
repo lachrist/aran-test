@@ -2,5 +2,5 @@
 (function () {
   for (var i=0; i<3; i++) {}
   if (i !== 3)
-    throw 'DeclarationFor';
+    throw "DeclarationFor";
 } ());

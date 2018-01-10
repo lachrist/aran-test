@@ -2,7 +2,7 @@
 (function () {
   var o = {a:1};
   if (o.a++ !== 1)
-    throw 'MemberUpdate1';
+    throw "MemberUpdate1";
   if (++o.a !== 3)
-    throw 'MemberUpdate2';
+    throw "MemberUpdate2";
 } ());

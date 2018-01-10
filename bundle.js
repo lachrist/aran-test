@@ -15,7 +15,8 @@ readable.push([
   "const script = "+JSON.stringify(Fs.readFileSync(process.argv[3], "utf8"))+";",
   "const test = AranTest(Advice, script);",
   "console.log(test.script);",
-  "console.log(JSON.stringify(test.result, null, 2));"
+  "delete test.script;",
+  "console.log(JSON.stringify(test, null, 2));"
 ].join("\n"));
 readable.push(null);
 const browserify = Browserify(readable, {basedir:__dirname});

@@ -14,7 +14,7 @@ exports.consumers = [
   "test",
   "throw",
   "return",
-  "eval"
+  "eval",
   "with",
   "write",
   "declare"

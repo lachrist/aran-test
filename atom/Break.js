@@ -2,6 +2,6 @@
 (function () {
   a:{
     break a;
-    throw 'Break';
+    throw "Break";
   }
 } ());
