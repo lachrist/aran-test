@@ -1,9 +1,12 @@
+
 exports.producers = [
+  "copy",
   "read",
   "builtin",
   "this",
+  "newtarget",
   "arguments",
-  "error",
+  "catch",
   "primitive",
   "regexp",
   "closure",
@@ -11,6 +14,8 @@ exports.producers = [
 ];
 
 exports.consumers = [
+  "drop",
+  "terminate",
   "test",
   "throw",
   "return",
@@ -21,15 +26,14 @@ exports.consumers = [
 ];
 
 exports.informers = [
-  "enter",
+  "try",
+  "finally",
+  "callee",
   "leave",
   "program",
-  "arrival",
+  "block",
   "label",
-  "continue",
-  "break",
-  "copy",
-  "drop"
+  "break"
 ];
 
 exports.combiners = [

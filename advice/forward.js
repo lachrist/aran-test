@@ -1,27 +1,36 @@
 
 const TrapCategories = require("../trap-categories");
 
-function pass () {
-  return arguments[arguments.length-2];
-}
-const empty = () => {};
+const eval = global.eval;
+const Reflect_apply = Reflect.apply;
+const Reflect_construct = Reflect.construct;
+const Array_prototype_forEach = Array.prototype.forEach;
 
-TrapCategories.producers.forEach((key) => exports[key] = pass);
-TrapCategories.consumers.forEach((key) => exports[key] = pass);
-TrapCategories.informers.forEach((key) => exports[key] = empty);
-exports.write = (wrt, tag, val, idx) => wrt(val);
-exports.apply = (fct, args, idx) => fct(...args);
-exports.invoke = (obj, key, args, idx) => obj[key](...args);
-exports.construct = (cst, args, idx) => new cst(...args);
-exports.unary = (opr, arg, idx) => eval(opr+" arg");
-exports.binary = (opr, arg1, arg2, idx) => eval("lft "+opr+" rgt");
-exports.get = (obj, key, idx) => obj[key];
-exports.set = (obj, key, val, idx) => obj[key] = val;
-exports.delete = (obj, key, idx) => delete obj[key];
-exports.array = (elms, idx) => elms;
-exports.object = (prps, idx) => {
-  var obj = {};
-  for (var i=0; i<prps.length; i++)
-    obj[prps[i][0]] = prps[i][1];
-  return obj
+const empty = () => {};
+function pass () { return arguments[arguments.length-2] }
+
+module.exports = (aran, join) => {
+  const traps = {};
+  Reflect_apply(Array_prototype_forEach, TrapCategories.producers, [(key) => traps[key] = pass]);
+  Reflect_apply(Array_prototype_forEach, TrapCategories.consumers, [(key) => traps[key] = pass]);
+  Reflect_apply(Array_prototype_forEach, TrapCategories.informers, [(key) => traps[key] = empty]);
+  traps.eval = (value, serial) => join(value, aran.node(serial).AranStrict);
+  traps.apply = (value, values, serial) => Reflect_apply(value, aran.node(serial).AranStrict ? void 0 : global, values);
+  traps.invoke = (value1, value2, values, serial) => Reflect_apply(value1[value2], value1, values);
+  traps.construct = (value, values, serial) => Reflect_construct(value, values);
+  traps.unary = (operator, value, serial) => eval(operator+" value");
+  traps.binary = (operator, value1, value2, serial) => eval("value1 "+operator+" value2");
+  traps.get = (value1, value2, serial) => value1[value2];
+  traps.delete = (value1, value2, serial) => delete value1[value2];
+  traps.array = (values, serial) => values;
+  traps.set = (value1, value2, value3, serial) => {
+    value1[value2] = value3;
+  };
+  traps.object = (properties, serial) => {
+    var object = {};
+    for (let index=0; index<properties.length; index++)
+      object[properties[index][0]] = properties[index][1];
+    return object;
+  };
+  return traps;
 };

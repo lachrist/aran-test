@@ -1,1 +1,2 @@
-var {x} = {x:"foo"};
+
+while (true) break;

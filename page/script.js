@@ -1,29 +1,34 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 const AranTest = require("./main.js");
 const Advice = require("/Users/soft/Desktop/workspace/aran-test/advice/empty.js");
-const script = "\nvar o = { set c (v) {} };\n";
+const script = "\nvar f = function (x, ...xs) {};\n";
 const test = AranTest(Advice, script);
 console.log(test.script);
 delete test.script;
 console.log(JSON.stringify(test, null, 2));
 },{"./main.js":3,"/Users/soft/Desktop/workspace/aran-test/advice/empty.js":2}],2:[function(require,module,exports){
 
+module.exports = (aran, join) => ({});
+
 },{}],3:[function(require,module,exports){
 (function (global){
 
 const Esprima = require("esprima");
 const Escodegen = require("escodegen");
-// const Esvalid = require("esvalid");
 const Aran = require("aran");
 
-module.exports = (advice, script1) => {
-  global.aran = advice;
-  const aran = Aran("aran");
-  const root1 = Esprima.parse(script1);
-  const root2 = aran.join(root1, Object.keys(advice));
-  // console.log(Esvalid.errors(root2)[0]);
-  // console.log(JSON.stringify(root2, null, 2));
-  const script2 = Escodegen.generate(root2);
+module.exports = (Advice, script1) => {
+  const aran = Aran({
+    namespace: "META",
+    output: "EstreeValid"
+  });
+  const join = (script, strict) => Escodegen.generate(
+    aran.join(
+      Esprima.parse(script, {loc:true}),
+      Object.keys(global.META),
+      strict));
+  global.META = Advice(aran, join);
+  const script2 = join(script1);
   try {
     return {
       script: script2,
@@ -38,7 +43,7 @@ module.exports = (advice, script1) => {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"aran":42,"escodegen":4,"esprima":6}],4:[function(require,module,exports){
+},{"aran":46,"escodegen":4,"esprima":6}],4:[function(require,module,exports){
 (function (global){
 /*
   Copyright (C) 2012-2014 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -14652,12 +14657,22 @@ function hasOwnProperty(obj, prop) {
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{"./support/isBuffer":26,"_process":13,"inherits":25}],28:[function(require,module,exports){
-(function (global){
 
-var parseInt = global.parseInt;
+exports.join = function (array, separator) {
+  if (array.length === 0)
+    return "";
+  var last = array.length-1;
+  var index = 0;
+  var result = "";
+  while (index < last) {
+    result += array[index++] + separator; 
+  }
+  return result + array[last];
+};
 
 exports.flaten = function (array1) {
-  var result=[];
+  var result = [];
+  var length = 0
   var index1 = 0;
   var length1 = array1.length;
   while (index1 < length1) {
@@ -14665,25 +14680,14 @@ exports.flaten = function (array1) {
     var index2 = 0;
     var length2 = array2.length;
     while (index2 < length2) {
-      result[result.length] = array2[index2++];
+      result[length++] = array2[index2++];
     }
   }
   return result;
 };
 
-exports.prefix = function (array1, array2) {
-  var index1 = 0;
-  var length1 = array1.length;
-  while (index1 < length1) {
-    if (array1[index1] !== array2[index1++]) {
-      return false;
-    }
-  }
-  return true;
-}
-
 exports.concat = function () {
-  var result=[];
+  var result = [];
   var index1 = 0;
   var length1 = arguments.length;
   while (index1 < length1) {
@@ -14697,7 +14701,7 @@ exports.concat = function () {
   return result;
 };
 
-exports.any = function (array, predicate) {
+exports.some = function (array, predicate) {
   var index = 0;
   var length = array.length;
   while (index < length) {
@@ -14708,7 +14712,7 @@ exports.any = function (array, predicate) {
   return false;
 };
 
-exports.all = function (array, predicate) {
+exports.every = function (array, predicate) {
   var index = 0;
   var length = array.length;
   while (index < length) {
@@ -14719,7 +14723,7 @@ exports.all = function (array, predicate) {
   return true;
 };
 
-exports.contain = function (array, element) {
+exports.includes = function (array, element) {
   var index = 0;
   var length = array.length;
   while (index<length) {
@@ -14728,6 +14732,16 @@ exports.contain = function (array, element) {
     }
   }
   return false;
+};
+
+exports.reverse = function (array) {
+  var index = array.length-1;
+  var result = [];
+  var length = 0;
+  while (index >= 0) {
+    result[length++] = array[index--];
+  }
+  return result;
 };
 
 exports.map = function (array, transform) {
@@ -14740,7 +14754,23 @@ exports.map = function (array, transform) {
   return result;
 };
 
-exports.zipmap = function (array, transformers) {
+exports.flatenMap = function (array1, transform) {
+  var result = [];
+  var length = 0;
+  var index1 = 0;
+  var length1 = array1.length;
+  while (index1 < length1) {
+    var array2 = transform(array1[index1], index1++, array1);
+    var index2 = 0;
+    var length2 = array2.length;
+    while (index2 < length2) {
+      result[length++] = array2[index2++];
+    }
+  }
+  return result;
+}
+
+exports.zipMap = function (array, transformers) {
   var result = [];
   var index = 0;
   var length = array.length;
@@ -14765,7 +14795,7 @@ exports.filter = function (array, predicate) {
   return result;
 };
 
-exports.each = function (array, procedure) {
+exports.forEach = function (array, procedure) {
   var index = 0;
   var length = array.length;
   while (index < length) {
@@ -14780,20 +14810,60 @@ exports.reduce = function (array, accumulator, result) {
     result = accumulator(result, array[index], index++, array);
   }
   return result;
+};
+
+exports.indexOf = function (array, value) {
+  var index = 0;
+  var length = array.length;
+  while (index < length) {
+    if (array[index] === value) {
+      return index;
+    }
+    index++;
+  }
+  return -1;
+};
+
+exports.find = function (array, predicate) {
+  var index = 0;
+  var length = array.length;
+  while (index < length) {
+    if (predicate(array[index], index, array)) {
+      return array[index];
+    }
+    index++;
+  }
+};
+
+exports.findIndex = function (array, predicate) {
+  var index = 0;
+  var length = array.length;
+  while (index < length) {
+    if (predicate(array[index], index, array)) {
+      return index;
+    }
+    index++
+  }
+  return -1;
 }
 
-exports.last = function (array) {
-  return array[array.length-1];
+exports.lastIndexOf = function (array, value) {
+  var index = array.length-1;
+  while (index >= 0) {
+    if (array[index] === value) {
+      return index;
+    }
+    index--;
+  }
+  return -1;
 };
 
 exports.slice = function (array, index, length) {
   var result = [];
-  index = parseInt(index);
-  if (index !== index || index < 0) {
+  if (!index) {
     index = 0;
   }
-  length = parseInt(length);
-  if (length !== length || length > array.length) {
+  if (!length || length > array.length) {
     length = array.length
   }
   while (index < length) {
@@ -14802,14 +14872,13 @@ exports.slice = function (array, index, length) {
   return result;
 };
 
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
 },{}],29:[function(require,module,exports){
 
 /////////////
 // Program //
 /////////////
 
-exports.PROGRAM = ["boolean", ["statement"]];
+exports.PROGRAM = ["boolean", ["statement"], "expression"];
 
 ////////////////
 // Expression //
@@ -14846,10 +14915,11 @@ exports.Throw = ["expression"];
 exports.Try = [["statement"], ["statement"], ["statement"]];
 exports.Declare = ["kind", "identifier", "expression"];
 exports.If = ["expression", ["statement"], ["statement"]];
-exports.Label = ["identifier", ["statement"]];
-exports.Break = ["?identifier"];
-exports.Continue = ["?identifier"];
-exports.While = ["expression", ["statement"]];
+exports.Label = ["label", ["statement"]];
+exports.Break = ["?label"];
+exports.Continue = [];
+exports.While = ["expression", "?label", ["statement"]];
+exports.For = [["statement"], "expression", "expression", "?label", ["statement"]];
 exports.Debugger = [];
 exports.Switch = [[{0:"expression", 1:["statement"]}]];
 exports.With = ["expression", ["statement"]];
@@ -14858,7 +14928,147 @@ exports.With = ["expression", ["statement"]];
 
 const Util = require("util");
 const ArrayLite = require("array-lite");
-const Build = require("./build.js");
+
+const etypes = [
+  "ThisExpression",
+  "Identifier",
+  "AssignmentExpression",
+  "ArrayExpression",
+  "ObjectExpression",
+  "FunctionExpression",
+  "UnaryExpression",
+  "Literal",
+  "MemberExpression",
+  "ConditionalExpression",
+  "BinaryExpression",
+  "UnaryExpression",
+  "NewExpression",
+  "CallExpression",
+  "SequenceExpression"
+];
+
+const stypes = [
+  "BlockStatement",
+  "ExpressionStatement",
+  "ReturnStatement",
+  "ThrowStatement",
+  "TryStatement",
+  "VariableDeclaration",
+  "IfStatement",
+  "LabeledStatement",
+  "BreakStatement",
+  "ContinueStatement",
+  "WhileStatement",
+  "ForStatement",
+  "DebuggerStatement",
+  "SwitchStatement",
+  "WithStatement"
+];
+
+const kinds = ["var", "let", "const"];
+
+const unaries = [
+  "-",
+  "+",
+  "!",
+  "~",
+  "typeof",
+  "void"
+];
+
+const binaries = [
+  "==",
+  "!=",
+  "===",
+  "!==",
+  "<",
+  "<=",
+  ">",
+  ">=",
+  "<<",
+  ">>",
+  ">>>",
+  "+",
+  "-",
+  "*",
+  "/",
+  "%",
+  "|",
+  "^",
+  "&",
+  "in",
+  "instanceof",
+  ".."
+];
+
+exports.identifier = (value) => {
+  if (typeof value !== "string")
+    throw new Error("[identifier] is not a string: "+Util.inspect(value));
+  if (!/^[$_a-zA-Z][$_a-zA-Z0-9]*$/.test(value))
+    throw new Error("[identifier] invalid: "+Util.inspect(value))
+};
+
+exports.label = (value) => {
+  if (typeof value !== "string")
+    throw new Error("[label] is not a string: "+Util.inspect(value));
+  if (!/^[$_a-zA-Z][$_a-zA-Z0-9]*$/.test(value))
+    throw new Error("[label] invalid: "+Util.inspect(value))
+};
+
+exports.expression = (value) => {
+  if (typeof value !== "object" || value === null)
+    throw new Error("[expression] not an object: "+Util.inspect(value));
+  if (!ArrayLite.includes(etypes, value.type))
+    throw new Error("[expression] unknwon type: "+Util.inspect(value));
+};
+
+exports.statement = (value) => {
+  if (typeof value !== "object" || value === null)
+    throw new Error("[statement] not an object: "+Util.inspect(value));
+  if (!ArrayLite.includes(stypes, value.type))
+    throw new Error("[statement] unknown type: "+Util.inspect(value));
+};
+
+exports.primitive = (value) => {
+  if (value && value !== true && typeof value !== "number" && typeof value !== "string")
+    throw new Error("[primitive] type error: "+Util.inspect(value));
+};
+
+exports.null = (value) => {
+  if (value !== null)
+    throw new Error("[null] not null: "+Utio.inspect(value))
+};
+
+exports.boolean = (value) => {
+  if (typeof value !== "boolean")
+    throw new Error("[boolean] type error: "+Util.inspect(value));
+};
+
+exports.string = (value) => {
+  if (typeof value !== "string")
+    throw new Error("[string] type error: "+Util.inspect(value));
+}
+
+exports.unary = (value) => {
+  if (!ArrayLite.includes(unaries, value))
+    throw new Error("[unary] unknown: "+Util.inspect(value));
+};
+
+exports.binary = (value) => {
+  if (!ArrayLite.includes(binaries, value))
+    throw new Error("[binary] unknown: "+Util.inspect(value));
+};
+
+exports.kind = (kind) => {
+  if (!ArrayLite.includes(kinds, kind))
+    throw new Error("[kind] unknown: "+Util.inspect(kind));
+};
+
+},{"array-lite":28,"util":27}],31:[function(require,module,exports){
+
+const Util = require("util");
+const ArrayLite = require("array-lite");
+const Estree = require("../estree.js");
 const Check = require("./check.js");
 const ArgumentsType = require("./arguments-type.js");
 const isArray = Array.isArray;
@@ -14866,13 +15076,13 @@ const keys = Object.keys;
 const apply = Reflect.apply;
 const substring = String.prototype.substring;
 
-ArrayLite.each(keys(Build), (key) => {
+ArrayLite.forEach(keys(Estree), (key) => {
   exports[key] = function () {
     if (arguments.length !== ArgumentsType[key].length)
-      throw new Error("Arguments number mismatch, expected "+ArgumentsType[key].length+", got: "+Util.inspect(arguments));
+      throw new Error("Arguments number mismatch, ["+key+"] expected "+ArgumentsType[key].length+", got: "+Util.inspect(arguments));
     for (var index = 0; index<ArgumentsType[key].length; index++)
       duck(ArgumentsType[key][index], arguments[index]);
-    return apply(Build[key], null, arguments);
+    return apply(Estree[key], null, arguments);
   };
 });
 
@@ -14880,7 +15090,7 @@ const duck = (type, value) => {
   if (isArray(type) && type.length === 1) {
     if (typeof value !== "object" || value === null || typeof value.length !== "number")
       throw new Error("Not an array: "+Util.inspect(value));
-    ArrayLite.each(
+    ArrayLite.forEach(
       value,
       (value) => duck(type[0], value));
   } else if (typeof type === "object" && type !== null) {
@@ -14888,10 +15098,9 @@ const duck = (type, value) => {
       throw new Error("Not an object: "+Util.inspect(value));
     for (var key in type)
       duck(type[key], value[key]);
-  } else if (typeof type === "string" && type[0] === "?"){
-    if (value !== null) {
+  } else if (typeof type === "string" && type[0] === "?") {
+    if (value !== null)
       Check[apply(substring, type, [1])](value);
-    }
   } else if (typeof type === "string") {
     Check[type](value);
   } else {
@@ -14899,7 +15108,7 @@ const duck = (type, value) => {
   }
 };
 
-},{"./arguments-type.js":29,"./build.js":31,"./check.js":32,"array-lite":28,"util":27}],31:[function(require,module,exports){
+},{"../estree.js":32,"./arguments-type.js":29,"./check.js":30,"array-lite":28,"util":27}],32:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
 
@@ -14907,7 +15116,7 @@ const ArrayLite = require("array-lite");
 // Program //
 /////////////
 
-exports.PROGRAM = (strict, statements) => ({
+exports.PROGRAM = (strict, statements, expression) => ({
   type: "Program",
   body: ArrayLite.concat(
     (
@@ -14919,7 +15128,11 @@ exports.PROGRAM = (strict, statements) => ({
             type: "Literal",
             value: "use strict"}}] :
       []),
-    statements)});
+    statements,
+    [
+      {
+        type: "ExpressionStatement",
+        expression: expression}])});
 
 ////////////////
 // Expression //
@@ -15160,7 +15373,7 @@ exports.If = (expression, statements1, statements2) => [
 
 exports.Label = (label, statements) => [
   {
-    type:"LabeledStatement",
+    type: "LabeledStatement",
     label: {
       type: "Identifier",
       name: label},
@@ -15171,28 +15384,60 @@ exports.Label = (label, statements) => [
 exports.Break = (label) => [
   {
     type:"BreakStatement",
-    label: label ?
+    label: (
+      label ?
       {
         type: "Identifier",
         name: label} :
-      null}];
+      null)}];
 
-exports.Continue = (label) => [
+exports.Continue = () => [
   {
-    type:"ContinueStatement",
-    label: label ?
-      {
-        type: "Identifier",
-        name: label} :
-      null}];
+    type: "ContinueStatement",
+    label: null}];
 
-exports.While = (expression, statements) => [
+exports.While = (expression, label, statements) => [
   {
     type: "WhileStatement",
     test: expression,
-    body: {
-      type: "BlockStatement",
-      body: statements}}];
+    body: (
+      label ?
+      {
+        type: "LabeledStatement",
+        label: {
+          type: "Identifier",
+          name: label},
+        body: {
+          type: "BlockStatement",
+          body: statements}} :
+      {
+        type: "BlockStatement",
+        body: statements})}];
+
+exports.For = (statements1, expression1, expression2, label, statements2) => [
+  {
+    type: "BlockStatement",
+    body: ArrayLite.concat(
+      statements1,
+      [
+        {
+          type: "ForStatement",
+          init: null,
+          test: expression1,
+          update: expression2,
+          body: (
+            label ?
+            {
+              type: "LabeledStatement",
+              label: {
+                type: "Identifier",
+                name: label},
+              body: {
+                type: "BlockStatement",
+                body: statements2}} :
+            {
+              type: "BlockStatement",
+              body: statements2})}])}];
 
 exports.Debugger = () => [
   {
@@ -15218,162 +15463,298 @@ exports.With = (expression, statements) => [
       type: "BlockStatement",
       body: statements}}];
 
-},{"array-lite":28}],32:[function(require,module,exports){
+},{"array-lite":28}],33:[function(require,module,exports){
 
-const Util = require("util");
+exports.String = require("./string.js");
+exports.Estree = require("./estree.js");
+exports.EstreeValid = require("./estree-valid");
 
-const etypes = [
-  "ThisExpression",
-  "Identifier",
-  "AssignmentExpression",
-  "ArrayExpression",
-  "ObjectExpression",
-  "FunctionExpression",
-  "UnaryExpression",
-  "Literal",
-  "MemberExpression",
-  "ConditionalExpression",
-  "BinaryExpression",
-  "UnaryExpression",
-  "NewExpression",
-  "CallExpression",
-  "SequenceExpression"
-];
-
-const stypes = [
-  "BlockStatement",
-  "ExpressionStatement",
-  "ReturnStatement",
-  "ThrowStatement",
-  "TryStatement",
-  "VariableDeclaration",
-  "IfStatement",
-  "LabeledStatement",
-  "BreakStatement",
-  "ContinueStatement",
-  "WhileStatement",
-  "DebuggerStatement",
-  "SwitchStatement",
-  "WithStatement"
-];
-
-const kinds = ["var", "let", "const"];
-
-const unaries = [
-  "-",
-  "+",
-  "!",
-  "~",
-  "typeof",
-  "void"
-];
-
-const binaries = [
-  "==",
-  "!=",
-  "===",
-  "!==",
-  "<",
-  "<=",
-  ">",
-  ">=",
-  "<<",
-  ">>",
-  ">>>",
-  "+",
-  "-",
-  "*",
-  "/",
-  "%",
-  "|",
-  "^",
-  "&",
-  "in",
-  "instanceof",
-  ".."
-];
-
-exports.identifier = (value) => {
-  if (typeof value !== "string")
-    throw new Error("[identifier] is not a string: "+Util.inspect(value));
-  if (!/^[$_a-zA-Z][$_a-zA-Z0-9]*$/.test(value))
-    throw new Error("[identifier] invalid: "+Util.inspect(value))
-};
-
-exports.expression = (value) => {
-  if (typeof value !== "object" || value === null)
-    throw new Error("[expression] not an object: "+Util.inspect(value));
-  if (!etypes.includes(value.type))
-    throw new Error("[expression] unknwon type: "+Util.inspect(value));
-};
-
-exports.statement = (value) => {
-  if (typeof value !== "object" || value === null)
-    throw new Error("[statement] not an object: "+Util.inspect(value));
-  if (!stypes.includes(value.type))
-    throw new Error("[statement] unknown type: "+Util.inspect(value));
-};
-
-exports.primitive = (value) => {
-  if (value && value !== true && typeof value !== "number" && typeof value !== "string")
-    throw new Error("[primitive] type error: "+Util.inspect(value));
-};
-
-exports.null = (value) => {
-  if (value !== null)
-    throw new Error("[null] not null: "+Utio.inspect(value))
-}
-
-exports.boolean = (value) => {
-  if (typeof value !== "boolean")
-    throw new Error("[boolean] type error: "+Util.inspect(value));
-};
-
-exports.string = (value) => {
-  if (typeof value !== "string")
-    throw new Error("[string] type error: "+Util.inspect(value));
-}
-
-exports.unary = (value) => {
-  if (!unaries.includes(value))
-    throw new Error("[unary] unknown: "+Util.inspect(value));
-};
-
-exports.binary = (value) => {
-  if (!binaries.includes(value))
-    throw new Error("[binary] unknown: "+Util.inspect(value));
-};
-
-exports.kind = (kind) => {
-  if (!kinds.includes(kind))
-    throw new Error("[kind] unknown: "+Util.inspect(kind));
-};
-
-},{"util":27}],33:[function(require,module,exports){
-
-module.exports = require("./build-check.js");
-
-},{"./build-check.js":30}],34:[function(require,module,exports){
+},{"./estree-valid":31,"./estree.js":32,"./string.js":34}],34:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
-const Build = require("../build");
+const stringify = JSON.stringify;
+
+/////////////
+// Program //
+/////////////
+
+exports.PROGRAM = (strict, statements, expression) => (
+  (strict ? "\"use strict\";" : "") + 
+  ArrayLite.join(statements, "")) +
+  expression +
+  ";";
+
+////////////////
+// Expression //
+////////////////
+
+exports.read = (identifier) => identifier;
+
+exports.write = (identifier, expression) => (
+  "(" +
+  identifier +
+  "=" +
+  expression +
+  ")");
+
+exports.array = (expressions) => (
+  "[" +
+  ArrayLite.join(expressions, ",") +
+  "]");
+
+exports.object = (properties) => (
+  "{" +
+  ArrayLite.join(
+    ArrayLite.map(
+      properties,
+      (property) => property[0] + ":" + property[1]),
+    ",") +
+  "}");
+
+exports.closure = (strict, statements) => (
+  "function(){" +
+  (strict ? "\"use-strict\";" : "") +
+  ArrayLite.join(statements, "") +
+  "}");
+
+exports.primitive = (primitive) => (
+  primitive === void 0 ?
+  "(void 0)" :
+  stringify(primitive));
+
+exports.regexp = (string1, string2) => (
+  "/" +
+  string1 +
+  "/" +
+  string2);
+
+exports.get = (expression1, expression2) => (
+  expression1 +
+  "[" +
+  expression2 +
+  "]");
+
+exports.set = (expression1, expression2, expression3) => (
+  "(" +
+  expression1 +
+  "[" +
+  expression2 +
+  "]=" +
+  expression3 +
+  ")");
+
+exports.conditional = (expression1, expression2, expression3) => (
+  "(" +
+  expression1 +
+  "?" +
+  expression2 +
+  ":" +
+  expression3 +
+  ")");
+
+exports.binary = (operator, expression1, expression2) => (
+  "(" +
+  expression1 +
+  " " +
+  operator +
+  " " +
+  expression2 +
+  ")");
+
+exports.unary = (operator, expression) => (
+  "(" +
+  operator +
+  " " +
+  expression +
+  ")");
+
+exports.delete = (expression1, expression2) => (
+  "(delete "+
+  expression1 +
+  "[" +
+  expression2 +
+  "])");
+
+exports.discard = (identifier) => (
+  "(delete " +
+  identifier +
+  ")");
+
+exports.construct = (expression, expressions) => (
+  "(new " +
+  expression +
+  "(" +
+  ArrayLite.join(expressions, ",") +
+  "))");
+
+exports.apply = (expression, expressions) => (
+  "(" +
+  expression +
+  "(" +
+  ArrayLite.join(expressions, ",") +
+  "))");
+
+exports.invoke = (expression1, expression2, expressions) => (
+  "(" +
+  expression1 +
+  "[" +
+  expression2 +
+  "](" +
+  ArrayLite.join(expressions, ",") +
+  "))");
+
+exports.sequence = (expressions) => (
+  expressions.length === 0 ?
+  "(void 0)" :
+  (
+    expressions.length === 1 ?
+    expressions[0] :
+    (
+      "(" +
+      ArrayLite.join(expressions, ",") +
+      ")")));
+
+exports.eval = (expression) => (
+  "eval(" +
+  expression +
+  ")");
+
+///////////////
+// Statement //
+///////////////
+
+exports.Block = (statements) => [
+  (
+    "{" +
+    ArrayLite.join(statements, "") +
+    "}")];
+
+exports.Statement = (expression) => [
+  (
+    expression +
+    ";")];
+
+exports.Return = (expression) => [
+  (
+    "return " +
+    expression +
+    ";")];
+
+exports.Throw = (expression) => [
+  (
+    "throw " +
+    expression +
+    ";")];
+
+exports.Try = (statements1, statements2, statements3) => [
+  (
+    "try{" +
+    ArrayLite.join(statements1, "") +
+    "}catch(error){" +
+    ArrayLite.join(statements2, "") +
+    "}finally{" +
+    ArrayLite.join(statements3, "") +
+    "}")];
+
+exports.Declare = (kind, identifier, expression) => [
+  (
+    kind +
+    " " +
+    identifier +
+    "=" +
+    expression +
+    ";")];
+
+exports.If = (expression, statements1, statements2) => [
+  (
+    "if(" +
+    expression +
+    "){" +
+    ArrayLite.join(statements1, "") +
+    "}else{" +
+    ArrayLite.join(statements2, "") +
+    "}")];
+
+exports.Label = (label, statements) => [
+  (
+    label +
+    ":{" +
+    ArrayLite.join(statements, "") +
+    "}")];
+
+exports.Break = (label) => [
+  (
+    "break " +
+    (label||"") +
+    ";")];
+
+exports.Continue = (label) => [
+  (
+    "continue "+
+    (label||"") +
+    ";")];
+
+exports.While = (expression, label, statements) => [
+  (
+    "while(" +
+    expression +
+    ")" +
+    (label ? label + ":" : ""),
+    "{" +
+    ArrayLite.join(statements, "") +
+    "}")];
+
+exports.For = (statements1, expression1, expression2, label, statements2) => [
+  (
+    "{" +
+    ArrayLite.join(statements1, "") +
+    "for(;" +
+    expression1 +
+    ";" +
+    expression2 +
+    ")" +
+    (label ? label + ":" : ""),
+    "{" +
+    ArrayLite.join(statements2, "") +
+    "}")];
+
+exports.Debugger = () => [
+  (
+    "debugger;")];
+
+exports.Switch = (clauses) => [
+  (
+    "switch(true){" +
+    ArrayLite.join(
+      ArrayLite.map(
+        clauses,
+        (clause) => (
+          "case " +
+          clause[0] +
+          ":" +
+          ArrayLite.join(clause[1], ""))),
+      "") +
+    "}")];
+
+exports.With = (expression, statements) => [
+  (
+    "with("+
+    expression +
+    "){" +
+    ArrayLite.join(statements, "") +
+    "}")];
+
+},{"array-lite":28}],35:[function(require,module,exports){
+
+const ArrayLite = require("array-lite");
 const Traps = require("./traps");
 const Escape = require("../escape.js");
 const apply = Reflect.apply;
 const substring = String.prototype.substring;
 const toUpperCase = String.prototype.toUpperCase;
-
-const inform = (expression) => expression ?
-  Build.Statement(expression) :
-  [];
-
-const sanitize = (identifier) => (
-  ArrayLite.contain(["this", "arguments", "error"], identifier) ?
-  Escape(identifier) :
-  ( 
-    ArrayLite.prefix(ARAN.namespace, identifier) ?
-    (ARAN.namespace[0] === "$" ? "_" : "$") + identifier :
-    identifier));
+const Inform = require("./inform.js");
+const SanitizeIdentifier = require("./sanitize-identifier.js");
+const SanitizeLabel = require("./sanitize-label.js");
 
 module.exports = (pointcut) => {
 
@@ -15381,11 +15762,32 @@ module.exports = (pointcut) => {
 
   const cut = {};
 
+  /////////////////
+  // Compilation //
+  /////////////////
+
+  cut.$builtin = (name) => traps.builtin(
+    name,
+    ARAN.build.read(
+      Escape(name)));
+
+  cut.$copy = traps.copy;
+
+  cut.$drop = traps.drop;
+
+// ACCESS GENERATED CODE
+  cut.$Drop = (expression, local) => (
+    local = traps.drop(expression),
+    (
+      local === expression ?
+      [] :
+      ARAN.build.Statement(local)));
+
   ///////////////
   // Combiners //
   ///////////////
 
-  ArrayLite.each(
+  ArrayLite.forEach(
     [
       "object",
       "array",
@@ -15398,173 +15800,217 @@ module.exports = (pointcut) => {
       "construct",
       "unary",
       "binary"],
-    (key) => {
-      cut[key] = traps[key];
-    });
+    (key) => cut[key] = traps[key]);
 
   ///////////////
   // Informers //
   ///////////////
 
-  cut.PROGRAM = (strict, statements) => Build.PROGRAM(
-    strict,
-    ArrayLite.concat(
-      inform(traps.program(strict)),
-      statements));
-
   cut.Label = (label, statements) => ArrayLite.concat(
-    inform(traps.label(label)),
-    Build.Label(label, ArrayLite.concat(
-      inform(traps.enter("label")),
-      statements,
-      inform(traps.leave("label")))));
+    Inform(traps.label(label, false)),
+    ARAN.build.Label(
+      label && SanitizeLabel.break(label),
+      ArrayLite.concat(
+        statements,
+        Inform(traps.leave("label")))));
 
   cut.Break = (label) => ArrayLite.concat(
-    inform(traps.break(label)),
-    Build.Break(label));
+    Inform(traps.break(label, false)),
+    ARAN.build.Break(
+      label && SanitizeLabel.break(label)));
 
   cut.Continue = (label) => ArrayLite.concat(
-    inform(traps.continue(label)),
-    Build.Continue(label));
+    Inform(traps.break(label, true)),
+    (
+      label ?
+      ARAN.build.Break(
+        SanitizeLabel.break(label)) :
+      ARAN.build.Continue()));
 
-  cut.Block = (statements) => Build.Block(
+  cut.Block = (statements) => ARAN.build.Block(
     ArrayLite.concat(
-      inform(traps.enter("block")),
+      Inform(traps.block()),
       statements,
-      inform(traps.leave("block"))));
-
-  cut.$Arrival = (strict, arrow) => inform(
-    traps.arrival(strict, arrow, null));
-
-  ArrayLite.each(
-    [0,1,2,3],
-    (position) => {
-      traps["copy"+position] = () => traps.copy(position);
-    });
-
-  traps.drop0 = traps.drop;
-
-  ArrayLite.each(
-    ["drop0", "copy0", "copy1", "copy2", "copy3"],
-    (key) => {
-      cut["$"+apply(toUpperCase, key[0], [])+apply(substring, key, [1])] = () => inform(traps[key]());
-      cut["$"+key+"before"] = (expression1) => {
-        const expression2 = traps[key]();
-        return expression2 ?
-          Build.sequence(expression1, expression2) :
-          expression1
-      };
-      cut["$"+key+"after"] = (expression1) => {
-        const expression2 = traps[key]();
-        return expression2 ?
-          Build.get(
-            Build.array([expression1, expression2]),
-            Build.primitive(0)) :
-          expression1;
-      };
-    });
+      Inform(traps.leave("block"))));
 
   ///////////////
   // Producers //
   ///////////////
 
-  cut.$this = () => traps.this(null);
-
-  cut.$arguments = () => traps.arguments(null);
-
-  cut.$error = () => traps.error(null);
-
-  cut.$builtin = (name) => traps.builtin(
-    name,
-    Escape(name));
-
-  cut.Try = (statements1, statements2, statements3) => Build.Try(
+  cut.Try = (statements1, statements2, statements3) => ARAN.build.Try(
     ArrayLite.concat(
-      inform(traps.enter("try")),
+      Inform(traps.try()),
       statements1,
-      inform(traps.leave("try"))),
+      Inform(traps.leave("try"))),
     ArrayLite.concat(
-      inform(traps.enter("catch")),
+      ARAN.build.Declare(
+        "const",
+        Escape("error"),
+        traps.catch(
+          ARAN.build.read("error"))),
       statements2,
-      inform(traps.leave("catch"))),
+      Inform(traps.leave("catch"))),
     ArrayLite.concat(
-      inform(traps.enter("finally")),
+      Inform(traps.finally()),
       statements3,
-      inform(traps.leave("finally"))));
+      Inform(traps.leave("finally"))));
 
-  cut.closure = (strict, statements) => traps.closure([strict, statements]);
+  cut.closure = (strict, statements) => ARAN.build.apply(
+    ARAN.build.closure(
+      strict,
+      ArrayLite.concat(
+        ARAN.build.Declare(
+          "const",
+          Escape("callee"),
+          ARAN.build.closure(
+            strict,
+            ArrayLite.concat(
+              Inform(
+                traps.callee(
+                  ARAN.build.read(
+                    Escape("callee")))),
+              ARAN.build.Declare(
+                "const",
+                Escape("this"),
+                traps.this(
+                  ARAN.build.read("this"))),
+              ARAN.build.Declare(
+                "const",
+                Escape("arguments"),
+                traps.this(
+                  ARAN.build.read("arguments"))),
+              statements))),
+        ARAN.build.Return(
+          ARAN.build.read(
+            Escape("callee"))))),
+    []);
 
   cut.read = (identifier) => traps.read(
     identifier,
-    sanitize(identifier));
+    ARAN.build.read(
+      SanitizeIdentifier(identifier)));
 
   cut.discard = (identifier) => traps.discard(
     identifier,
-    sanitize(identifier));
+    ARAN.build.discard(
+      SanitizeIdentifier(identifier)));
 
-  cut.primitive = (primitive) => traps.primitive(primitive);
+  cut.primitive = (primitive) => traps.primitive(
+    ARAN.build.primitive(primitive));
 
-  cut.regexp = (pattern, flags) => traps.regexp([pattern, flags]);
+  cut.regexp = (pattern, flags) => traps.regexp(
+    ARAN.build.regexp(pattern, flags));
 
   ///////////////
   // Consumers //
   ///////////////
 
-  cut.write = (identifier, expression) => Build.write(
-    sanitize(identifier),
+  cut.PROGRAM = (strict, statements, expression) => ARAN.build.PROGRAM(
+    strict,
+    ArrayLite.concat(
+      Inform(traps.program()),
+      statements),
+    traps.terminate(expression));
+
+  cut.write = (identifier, expression) => ARAN.build.write(
+    SanitizeIdentifier(identifier),
     traps.write(identifier, expression));
 
-  cut.Declare = (kind, identifier, expression) => Build.Declare(
+  cut.Declare = (kind, identifier, expression) => ARAN.build.Declare(
     kind,
-    sanitize(identifier),
+    SanitizeIdentifier(identifier),
     traps.declare(kind, identifier, expression));
 
-  cut.Return = (expression) => Build.Return(
+  cut.Return = (expression) => ARAN.build.Return(
     traps.return(expression));
 
-  cut.eval = (expression) => Build.eval(
+  cut.eval = (expression) => ARAN.build.eval(
     traps.eval(expression));
 
-  cut.With = (expression, statements) => Build.With(
+  cut.With = (expression, statements) => ARAN.build.With(
     traps.with(expression),
     ArrayLite.concat(
-      inform(traps.enter("with")),
       statements,
-      inform(traps.leave("with"))));
+      Inform(traps.leave("with"))));
 
-  cut.Throw = (expression) => Build.Throw(
+  cut.Throw = (expression) => ARAN.build.Throw(
     traps.throw(expression));
 
-  cut.While = (expression, statements) => Build.While(
-    traps.test(expression),
-    ArrayLite.concat(
-      inform(traps.enter("while")),
-      statements,
-      inform(traps.leave("while"))));
+  cut.While = (expression, label, statements) => ArrayLite.concat(
+    Inform(
+      traps.label(null, false)),
+    ARAN.build.While(
+      traps.test(expression),
+      (
+        label &&
+        SanitizeLabel.continue(label)),
+      ArrayLite.concat(
+        Inform(
+          traps.label(null, true)),
+        (
+          label ?
+          Inform(
+            traps.label(label, true)) :
+          []),
+        statements,
+        (
+          label ?
+          Inform(
+            traps.leave("label")) :
+          []),
+        Inform(
+          traps.leave("label")))),
+    Inform(traps.leave("label")));
 
-  cut.If = (expression, statements1, statements2) => Build.If(
-    traps.test(expression),
-    ArrayLite.concat(
-      inform(traps.enter("then")),
+  cut.For = (statements1, expression1, expression2, label, statements2) => ArrayLite.concat(
+    Inform(traps.label(null)),
+    ARAN.build.For(
       statements1,
-      inform(traps.leave("then"))),
-    ArrayLite.concat(
-      inform(traps.enter("else")),
-      statements2,
-      inform(traps.leave("else"))));
+      traps.test(expression1),
+      expression2,
+      (
+        label &&
+        SanitizeLabel.continue(label)),
+      ArrayLite.concat(
+        Inform(
+          traps.label(null, true)),
+        (
+          label ?
+          Inform(
+            traps.label(label, true)) :
+          []),
+        statements2,
+        (
+          label ?
+          Inform(
+            traps.leave("label")) :
+          []),
+        Inform(traps.leave("label")))),
+    Inform(traps.leave("label")));
 
-  cut.conditional = (expression1, expression2, expression3) => Build.conditional(
+  cut.If = (expression, statements1, statements2) => ARAN.build.If(
+    traps.test(expression),
+    ArrayLite.concat(
+      Inform(traps.block()),
+      statements1,
+      Inform(traps.leave("block"))),
+    ArrayLite.concat(
+      Inform(traps.block()),
+      statements2,
+      Inform(traps.leave("block"))));
+
+  cut.conditional = (expression1, expression2, expression3) => ARAN.build.conditional(
     traps.test(expression1),
     expression2,
     expression3);
 
   cut.Switch = (clauses) => ArrayLite.concat(
-    inform(traps.enter("switch")),
-    Build.Switch(
+    Inform(traps.label(null)),
+    ARAN.build.Switch(
       clauses.map((clause) => [
         traps.test(clause[0]),
         clause[1]])),
-    inform(traps.leave("switch")));
+    Inform(traps.leave("label")));
 
   ////////////
   // Return //
@@ -15574,172 +16020,162 @@ module.exports = (pointcut) => {
 
 };
 
-},{"../build":33,"../escape.js":41,"./traps":39,"array-lite":28}],35:[function(require,module,exports){
+},{"../escape.js":45,"./inform.js":36,"./sanitize-identifier.js":37,"./sanitize-label.js":38,"./traps":43,"array-lite":28}],36:[function(require,module,exports){
+
 const ArrayLite = require("array-lite");
-const Build = require("../../../build");
+const identity = (argument0) => argument0;
+
+module.exports = ($expression) => (
+  $expression ?
+  ARAN.build.Statement($expression) :
+  []);
+
+// exports.last = function () {
+//   return ARAN.build.sequence(
+//     ArrayLite.filter(identity, arguments));
+// };
+
+// exports.first = function () {
+//   return ARAN.build.get(
+//     ARAN.build.array(
+//       ArrayLite.filter(identity, arguments)),
+//     ARAN.build.primitive(0));
+// };
+
+},{"array-lite":28}],37:[function(require,module,exports){
+
+const apply = Reflect.apply;
+const startsWith = String.prototype.startsWith;
+
+module.exports = (identifier) => (
+  (
+    identifier === "this" ||
+    identifier === "arguments" ||
+    identifier === "error" ||
+    identifier[0] === (ARAN.namespace === "$" ? "_" : "$") ||
+    apply(startsWith, identifier, [ARAN.namespace])) ?
+  (ARAN.namespace === "$" ? "_" : "$") + identifier :
+  identifier);
+
+},{}],38:[function(require,module,exports){
+
+exports.break = (label) => "$" + label;
+
+exports.continue = (label) => "_" + label;
+
+},{}],39:[function(require,module,exports){
+const ArrayLite = require("array-lite");
 const TrapArguments = require("./trap-arguments.js");
 
 const empty = () => null;
-function pass () {
-  return arguments[arguments.length-1];
-}
+function last () { return arguments[arguments.length-1] }
 
-ArrayLite.each(
+ArrayLite.forEach(
   Object.keys(TrapArguments.combiners),
-  (key) => exports[key] = Build[key]);
+  (key) => exports[key] = (
+    TrapArguments.combiners[key].length === 1 ?
+    (argument0) => ARAN.build[key](argument0) :
+    (
+      TrapArguments.combiners[key].length === 2 ?
+      (argument0, argument1) => ARAN.build[key](argument0, argument1) :
+      (argument0, argument1, argument2) => ARAN.build[key](argument0, argument1, argument2))));
 
-ArrayLite.each(
+ArrayLite.forEach(
   Object.keys(TrapArguments.informers),
   (key) => exports[key] = empty);
 
-ArrayLite.each(
-  Object.keys(TrapArguments.consumers),
-  (key) => exports[key] = pass);
+ArrayLite.forEach(
+  ArrayLite.concat(
+    Object.keys(TrapArguments.producers),
+    Object.keys(TrapArguments.consumers)),
+  (key) => exports[key] = last);
 
-ArrayLite.each(
-  Object.keys(TrapArguments.producers),
-  (key) => {
-    const last = TrapArguments.producers[key].length-1;
-    const transformer = TrapArguments.producers[key][last];
-    exports[key] = function () {
-      return transformer(arguments[last]);
-    };
-  });
-
-},{"../../../build":33,"./trap-arguments.js":38,"array-lite":28}],36:[function(require,module,exports){
+},{"./trap-arguments.js":42,"array-lite":28}],40:[function(require,module,exports){
 
 exports.true = require("./intercept.js");
 exports.false = require("./forward.js");
 
-},{"./forward.js":35,"./intercept.js":37}],37:[function(require,module,exports){
+},{"./forward.js":39,"./intercept.js":41}],41:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
-const Build = require("../../../build");
 const TrapArguments = require("./trap-arguments");
 
 const keys = Object.keys;
 
-ArrayLite.each(
+ArrayLite.forEach(
   ["consumers", "producers", "informers", "combiners"],
-  (category) => ArrayLite.each(
+  (category) => ArrayLite.forEach(
       keys(TrapArguments[category]),
       (key) => exports[key] = function () {
-        const array = ArrayLite.zipmap(arguments, TrapArguments[category][key]);
-        array[array.length] = Build.primitive(ARAN.index);
-        return Build.invoke(
-          Build.read(ARAN.namespace),
-          Build.primitive(key),
+        const array = [];
+        for (var index=0; index<arguments.length; index++)
+          array[index] = TrapArguments[category][key][index](arguments[index]);
+        array[index] = ARAN.build.primitive(ARAN.parent.AranIndex);
+        return ARAN.build.invoke(
+          ARAN.build.read(ARAN.namespace),
+          ARAN.build.primitive(key),
           array) }));
 
-},{"../../../build":33,"./trap-arguments":38,"array-lite":28}],38:[function(require,module,exports){
+},{"./trap-arguments":42,"array-lite":28}],42:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
-const Build = require("../../../build");
 const Escape = require("../../../escape.js");
 
+const identity = (argument) => argument;
+const primitive = (primitive) => ARAN.build.primitive(primitive);
+const array = (expressions) => ARAN.build.array(expressions);
+const object = (expressions) => ARAN.build.array(
+  ArrayLite.map(
+    expressions,
+    array));
+
 exports.combiners = {
-  object: [
-    (array) => Build.array(
-      ArrayLite.map(
-        array,
-        Build.array))],
-  array: [
-    Build.array],
-  get: [
-    null,
-    null],
-  set: [
-    null,
-    null,
-    null],
-  delete: [
-    null,
-    null],
-  invoke: [
-    null,
-    null,
-    Build.array],
-  apply: [
-    null,
-    Build.array],
-  construct: [
-    null,
-    Build.array],
-  unary: [
-    Build.primitive,
-    null],
-  binary: [
-    Build.primitive,
-    null,
-    null]};
+  object: [object],
+  array: [array],
+  get: [identity, identity],
+  set: [identity, identity, identity],
+  delete: [identity, identity],
+  invoke: [identity, identity, array],
+  apply: [identity, array],
+  construct: [identity, array],
+  unary: [primitive, identity],
+  binary: [primitive, identity, identity]};
 
 exports.producers = {
-  read: [
-    Build.primitive,
-    Build.read],
-  discard: [
-    Build.primitive,
-    Build.discard],
-  builtin: [
-    Build.primitive,
-    Build.read],
-  this: [
-    () => Build.read("this")],
-  arguments: [
-    () => Build.read("arguments")],
-  error: [
-    () => Build.read("error")],
-  primitive: [
-    Build.primitive],
-  regexp: [
-    (array) => Build.regexp(array[0], array[1])],
-  closure: [
-    (array) => Build.closure(array[0], array[1])]};
+  copy: [primitive, identity],
+  read: [primitive, identity],
+  discard: [primitive, identity],
+  builtin: [primitive, identity],
+  this: [identity],
+  arguments: [identity],
+  catch: [identity],
+  primitive: [identity],
+  regexp: [identity],
+  closure: [identity]};
 
 exports.consumers = {
-  declare: [
-    Build.primitive,
-    Build.primitive,
-    null],
-  write: [
-    Build.primitive,
-    null],
-  test: [
-    null],
-  with: [
-    null],
-  throw: [
-    null],
-  return: [
-    null],
-  eval: [
-    null]};
+  drop: [identity],
+  declare: [primitive, primitive, identity],
+  write: [primitive, identity],
+  test: [identity],
+  with: [identity],
+  throw: [identity],
+  return: [identity],
+  eval: [identity],
+  terminate: [identity]};
 
 exports.informers = {
-  enter: [
-    Build.primitive],
-  leave: [
-    Build.primitive],
-  program: [
-    Build.primitive],
-  arrival: [
-    Build.primitive,
-    Build.primitive,
-    () => Build.get(
-      Build.read("arguments"),
-      Build.primitive("length"))],
-  label: [
-    Build.primitive],
-  continue: [
-    Build.prmitive],
-  break: [
-    Build.primitive],
-  copy: [
-    Build.primitive],
-  drop: [
-    Build.primitive]};
+  try: [],
+  finally: [],
+  block: [],
+  program: [],
+  callee: [identity],
+  label: [primitive],
+  leave: [primitive],
+  continue: [primitive],
+  break: [primitive]};
 
-},{"../../../build":33,"../../../escape.js":41,"array-lite":28}],39:[function(require,module,exports){
+},{"../../../escape.js":45,"array-lite":28}],43:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
 const Fork = require("./fork");
@@ -15751,7 +16187,7 @@ const apply = Reflect.apply;
 module.exports = (pointcut) => {
   const make = (
     isArray(pointcut) ?
-    (key) => Fork[Boolean(ArrayLite.contain(pointcut, key))][key] :
+    (key) => Fork[Boolean(ArrayLite.includes(pointcut, key))][key] :
     (
       typeof pointcut === "function" ?
       (key) => function () { return apply(
@@ -15767,15 +16203,15 @@ module.exports = (pointcut) => {
             null,
             arguments) } :
           Fork[Boolean(pointcut[key])][key]) :
-        Fork[false])));
+        (key) => Fork[false][key])));
   const cut = {};
-  ArrayLite.each(
+  ArrayLite.forEach(
     TrapNames,
     (name) => cut[name] = make(name));
   return cut;
 };
 
-},{"./fork":36,"./trap-names.js":40,"array-lite":28}],40:[function(require,module,exports){
+},{"./fork":40,"./trap-names.js":44,"array-lite":28}],44:[function(require,module,exports){
 
 module.exports = [
   // Combiners //
@@ -15790,16 +16226,18 @@ module.exports = [
   "unary",
   "binary",
   // Producers //
+  "copy",
   "read",
   "discard",
   "builtin",
   "this",
   "arguments",
-  "error",
+  "catch",
   "primitive",
   "regexp",
   "closure",
   // Consumers //
+  "drop",
   "declare",
   "write",
   "test",
@@ -15807,59 +16245,62 @@ module.exports = [
   "throw",
   "return",
   "eval",
+  "terminate",
   // Informers //
-  "enter",
-  "leave",
   "program",
-  "arrival",
   "label",
-  "continue",
-  "break",
-  "copy",
-  "drop"];
+  "callee",
+  "block",
+  "try",
+  "finally",
+  "leave",
+  "break"];
 
-},{}],41:[function(require,module,exports){
+},{}],45:[function(require,module,exports){
 
-module.exports = (name) => ARAN.namespace + "_" + name;
+module.exports = (name) => ARAN.namespace + name;
 
-},{}],42:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 (function (global){
 
 const Join = require("./join");
 const Cut = require("./cut");
+const Build = require("./build");
 const ArrayLite = require("array-lite");
 
-function join (root, pointcut) {
+function join (root, pointcut, strict) {
   this._roots.push(root);
   const temporary = global.ARAN;
   global.ARAN = {
+    build: this._build,
+    nodes: this._nodes,
     namespace: this.namespace,
     counter: this._counter,
     cut: Cut(pointcut)
   };
-  const result = Join(root);
+  const result = Join(root, strict);
   this._counter = global.ARAN.counter;
   global.ARAN = temporary;
   return result;
 }
 
-function root (idx) {
+function root (iid) {
   for (var index=0, length=this._roots.length; index<length; index++) {
-    if (idx >= this._roots[index].__min__ && idx <= this._roots[index].__max__) {
+    if (iid >= this._roots[index].AranIndex && iid <= this._roots[index].AranMaxIndex) {
       return this._roots[index];
     }
   }
 }
 
-function node (idx) {
+function node1 (iid) {
   var nodes = ArrayLite.slice(this._roots);
   for (var index = 0; index < node.length; index++) {
     var node = nodes[index];
     if (typeof node === "object" && node !== null) {
-      if (node.__min__ === idx) {
+      if (node.AranIndex === iid) {
         return node;
       }
-      if (!node.__min__ || (idx > node.__min__ && idx <= node.__max__)) {
+      if (!node.AranIndex || (iid > node.AranIndex && iid <= node.AranMaxIndex)) {
         for (var key in node) {
           nodes[nodes.length] = node[key];
         }
@@ -15868,28 +16309,23 @@ function node (idx) {
   }
 }
 
-module.exports = (namespace) => ({
+function node2 (iid) {
+  return this._nodes[iid];
+};
+
+module.exports = (options) => ({
   _roots: [],
   _counter: 1,
-  namespace: namespace || "__aran__",
+  _build: options.output ? (Build[options.output] || options.output) : Build.Estree,
+  _nodes: options.nocache ? null : [],
+  namespace: options.namespace || "__aran__",
   join: join,
   root: root,
-  node: node
+  node: options.nocache ? node1 : node2
 });
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./cut":34,"./join":44,"array-lite":28}],43:[function(require,module,exports){
-
-const ArrayLite = require("array-lite");
-
-module.exports = (statement) => ({
-  strict: Boolean(statement) &&
-    statement.type === "ExpressionStatement" &&
-    statement.expression.type === "Literal" &&
-    statement.expression.value === "use strict",
-  hoisted: [] });
-
-},{"array-lite":28}],44:[function(require,module,exports){
+},{"./build":33,"./cut":35,"./join":47,"array-lite":28}],47:[function(require,module,exports){
 
 // array = rest(array, iterator)
 //
@@ -15902,252 +16338,360 @@ module.exports = (statement) => ({
 // }
 
 const ArrayLite = require("array-lite");
-const Build = require("../build");
 const Escape = require("../escape.js");
 const Visit = require("./visit");
-const Context = require("./context.js");
+const Interim = require("./interim.js");
+const Terminate = require("./terminate.js");
 
 const keys = Object.keys;
 
-module.exports = (node) => {
-  node.__min__ = ++ARAN.counter;
-  ARAN.index = ARAN.counter;
-  ARAN.context = Context(node.body[0]);
-  const statements = ArrayLite.flaten(
-    node.body.map(Visit.Statement));
-  return Build.PROGRAM(
-    ARAN.context.strict,
+module.exports = (node, strict) => {
+  Terminate(node);
+  node.AranParent = null;
+  node.AranStrict = (
+    strict ||
+    (
+      node.body.length &&
+      node.body[0].type === "ExpressionStatement" &&
+      node.body[0].expression.type === "Literal" &&
+      node.body[0].expression.value === "use strict"));
+  node.AranIndex = ++ARAN.counter;
+  if (ARAN.nodes)
+    ARAN.nodes[ARAN.counter] = node;
+  ARAN.hoisted = [];
+  ARAN.parent = node;
+  ARAN.terminate = Escape("terminate"+node.AranIndex);
+  const statements = ArrayLite.flatenMap(
+    node.body,
+    Visit.Statement);
+  const result = ARAN.cut.PROGRAM(
+    node.AranStrict,
     ArrayLite.concat(
-      // ArrayLite.flaten(
-      //   ArrayLite.map(
-      //     keys(builtins),
-      //     save)),
-      ArrayLite.flaten(
-        ARAN.context.hoisted),
-      statements));
+      ArrayLite.flatenMap(
+        keys(builtins),
+        save),
+      ARAN.build.Declare(
+        "var",
+        ARAN.terminate,
+        ARAN.cut.primitive(void 0)),
+      ArrayLite.flaten(ARAN.hoisted),
+      statements),
+    ARAN.build.read(ARAN.terminate));
+  delete ARAN.hoisted;
+  delete ARAN.parent;
+  delete ARAN.terminate;
+  node.AranMaxIndex = ARAN.counter;
+  return result;
 };
 
 const builtins = {
-  global: () => Build.conditional(
-    Build.binary(
+  global: () => ARAN.build.conditional(
+    ARAN.build.binary(
       "===",
-      Build.unary(
+      ARAN.build.unary(
         "typeof",
-        Build.read("window")),
-      Build.primitive("undefined")),
-    Build.read("global"),
-    Build.read("window")),
-  apply: () => Build.get(
-    Build.read("Reflect"),
-    Build.primitive("apply")),
-  defineProperty: () => Build.get(
-    Build.read("Object"),
-    Build.primitive("defineProperty")),
-  getPrototypeOf: () => Build.get(
-    Build.read("Object"),
-    Build.primitive("getPrototypeOf")),
-  keys: () => Build.get(
-    Build.read("Object"),
-    Build.primitive("keys")),
-  iterator: () => Build.get(
-    Build.read("Symbol"),
-    Build.primitive("iterator")),
-  eval: () => Build.read("eval"),
-  rest: () => Build.closure(
+        ARAN.build.read("window")),
+      ARAN.build.primitive("undefined")),
+    ARAN.build.read("global"),
+    ARAN.build.read("window")),
+  apply: () => ARAN.build.get(
+    ARAN.build.read("Reflect"),
+    ARAN.build.primitive("apply")),
+  defineProperty: () => ARAN.build.get(
+    ARAN.build.read("Object"),
+    ARAN.build.primitive("defineProperty")),
+  getPrototypeOf: () => ARAN.build.get(
+    ARAN.build.read("Object"),
+    ARAN.build.primitive("getPrototypeOf")),
+  keys: () => ARAN.build.get(
+    ARAN.build.read("Object"),
+    ARAN.build.primitive("keys")),
+  iterator: () => ARAN.build.get(
+    ARAN.build.read("Symbol"),
+    ARAN.build.primitive("iterator")),
+  eval: () => ARAN.build.read("eval"),
+  rest: () => ARAN.build.closure(
     false,
     ArrayLite.concat(
-      Build.Declare(
+      ARAN.build.Declare(
         "let",
         "step",
-        Build.primitive(void 0)),
-      Build.While(
-        Build.unary(
+        ARAN.build.primitive(void 0)),
+      ARAN.build.Declare(
+        "let",
+        "array",
+        ARAN.build.array([])),
+      ARAN.build.While(
+        ARAN.build.unary(
           "!",
-          Build.get(
-            Build.write(
+          ARAN.build.get(
+            ARAN.build.write(
               "step",
-              Build.invoke(
-                Build.get(
-                  Build.read(
-                    "arguments"),
-                  Build.primitive(1)),
-                Build.primitive("next"),
+              ARAN.build.invoke(
+                ARAN.build.get(
+                  ARAN.build.read("arguments"),
+                  ARAN.build.primitive(1)),
+                ARAN.build.primitive("next"),
                 [])),
-            Build.primitive("done"))),
-        Build.Statement(
-          Build.set(
-            Build.get(
-              Build.read("arguments"),
-              Build.primitive(0)),
-            Build.get(
-              Build.get(
-                Build.read("arguments"),
-                Build.primitive(0)),
-              Build.primitive("length")),
-            Build.get(
-              Build.read("step"),
-              Build.primitive("value"))))),
-      Build.Return(
-        Build.get(
-          Build.read("arguments"),
-          Build.primitive(0)))))};
+            ARAN.build.primitive("done"))),
+        null,
+        ARAN.build.Statement(
+          ARAN.build.set(
+            ARAN.build.read("array"),
+            ARAN.build.get(
+              ARAN.build.read("array"),
+              ARAN.build.primitive("length")),
+            ARAN.build.get(
+              ARAN.build.read("step"),
+              ARAN.build.primitive("value"))))),
+      ARAN.build.Return(
+        ARAN.build.read("array"))))};
 
-const save = (key) => Build.If(
-  Build.binary(
+const save = (key) => ARAN.build.If(
+  ARAN.build.binary(
     "===",
-    Build.unary(
+    ARAN.build.unary(
       "typeof",
-      Build.read(
+      ARAN.build.read(
         Escape(key))),
-    Build.primitive("undefined")),
-  Build.Declare(
+    ARAN.build.primitive("undefined")),
+  ARAN.build.Declare(
     "var",
     Escape(key),
     builtins[key]()),
   []);
 
-},{"../build":33,"../escape.js":41,"./context.js":43,"./visit":56,"array-lite":28}],45:[function(require,module,exports){
+},{"../escape.js":45,"./interim.js":48,"./terminate.js":49,"./visit":60,"array-lite":28}],48:[function(require,module,exports){
 
-const Build = require("../build");
 const Escape = require("../escape.js");
 
 exports.hoist = (information, expression) => {
-  ARAN.context.hoisted[ARAN.context.hoisted.length] = Build.Declare(
+  ARAN.hoisted[ARAN.hoisted.length] = ARAN.build.Declare(
     "var",
-    Escape(ARAN.index + "_" + information),
-    Build.primitive(void 0));
-  return Build.write(
-    Escape(ARAN.index + "_" + information),
+    Escape(ARAN.parent.AranIndex + "_" + information),
+    ARAN.build.primitive(void 0));
+  return ARAN.build.write(
+    Escape(ARAN.parent.AranIndex + "_" + information),
     expression);
 };
 
-exports.read = (information) => Build.read(
-  Escape(ARAN.index + "_" + information));
+exports.read = (information) => ARAN.build.read(
+  Escape(ARAN.parent.AranIndex + "_" + information));
 
-exports.write = (information, expression) => Build.write(
-  Escape(ARAN.index + "_" + information),
+exports.write = (information, expression) => ARAN.build.write(
+  Escape(ARAN.parent.AranIndex + "_" + information),
   expression);
 
-exports.Declare = (information, expression) => Build.Declare(
+exports.Declare = (information, expression) => ARAN.build.Declare(
   "var",
-  Escape(ARAN.index + "_" + information),
+  Escape(ARAN.parent.AranIndex + "_" + information),
   expression);
 
-},{"../build":33,"../escape.js":41}],46:[function(require,module,exports){
+},{"../escape.js":45}],49:[function(require,module,exports){
+
+const stop = (node) => false;
+const body = (node) => {
+  visit(node.body);
+  return true;
+};
+
+const visit = (node) => visitors[node.type](node);
+
+module.exports = (node) => {
+  for (var index = node.body.length-1; index>=0; index--)
+    if (visit(node.body[index]))
+      return;
+};
+
+const visitors = {};
+visitors.EmptyStatement = stop;
+visitors.BlockStatement = (node) => {
+  for (let index = node.body.length-1; index >= 0; index--)
+    if (visit(node.body[index]))
+      return true;
+  return false;
+};
+visitors.ExpressionStatement = (node) => node.expression.AranTerminate = true;
+visitors.IfStatement = (node) => {
+  visit(node.consequent);
+  if (node.alternate)
+    visit(node.alternate);
+  return true;
+};
+visitors.LabeledStatement = (node) => visit(node.body);
+visitors.BreakStatement = stop;
+visitors.ContinueStatement = stop;
+visitors.WithStatement = body;
+visitors.SwitchStatement = (node) => {
+  for (let index1 = 0; index1 < node.cases.length; index1++)
+    for (let index2 = node.cases[index1].consequent.length-1; index2 >= 0; index2--)
+      if (visit(node.cases[index1].consequent[index2]))
+        break;
+  return true;
+};
+visitors.ReturnStatement = (node) => {
+  throw new Error("Illegal return statement");
+};
+visitors.ThrowStatement = (node) => true;
+visitors.TryStatement = (node) => {
+  visit(node.block);
+  visit(node.handler.body);
+  return true;
+};
+visitors.WhileStatement = body;
+visitors.DoWhileStatement = body;
+visitors.ForStatement = body;
+visitors.ForInStatement = body;
+visitors.ForOfStatement = body;
+visitors.DebuggerStatement = stop;
+visitors.FunctionDeclaration = stop;
+visitors.VariableDeclaration = (node) => {
+  for (let index = node.declarations.length-1; index >= 0; index--)
+    if (node.declarations[index].init)
+      return node.declarations[index].init.AranTerminate = true;
+  return false;
+};
+
+},{}],50:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
 const Visit = require("../visit");
 
 exports.Body = (node) => (
   node.type === "BlockStatement" ?
-  ArrayLite.flaten(
-    ArrayLite.map(
-      node.body,
-      Visit.Statement)) :
+  ArrayLite.flatenMap(
+    node.body,
+    Visit.Statement) :
   Visit.Statement(node));
 
-},{"../visit":56,"array-lite":28}],47:[function(require,module,exports){
+},{"../visit":60,"array-lite":28}],51:[function(require,module,exports){
+(function (global){
 
 const ArrayLite = require("array-lite");
-const Build = require("../../build");
+const Escape = require("../../escape.js");
 const Interim = require("../interim.js");
-const Context = require("../context.js");
 const Visit = require("../visit");
 const Util = require("./index.js");
+const Error = global.Error;
 
-exports.closure = (node) => {
-  const temporary = ARAN.context;
-  ARAN.context = Context(!node.expression && node.body.body[0]);
+const clean = (patterns) => {
+  let index1 = 0;
+  for (let index1 = 0; index1 < patterns.length; index1++) {
+    const pattern = patterns[index1];
+    if (pattern.type === "Identifier") {
+      if (pattern.name === "arguments")
+        return false;
+    } else if (pattern.type === "RestElement") {
+      patterns[patterns.length] = pattern.argument;
+    } else if (pattern.type === "AssignmentPattern") {
+      patterns[patterns.length] = pattern.left;
+    } else if (pattern.type === "ArrayPattern") {
+      for (let index2=0, length2=pattern.elements.length; index2<length2; index2++)
+        if (pattern.elements[index2])
+          patterns[patterns.length] = pattern.elements[index2];
+    } else if (pattern.type === "ObjectPattern") {
+      for (let index2=0, length2=patterns.properties.length; index2<length2; index2++)
+        patterns[patterns.length] = pattern.properties[index2].value;
+    } else {
+      throw new Error("Unknown pattern type: "+pattern.type);
+    }
+  }
+  return true;
+}
+
+exports.closure = (node, local1, local2) => {
+  const temporary = ARAN.hoisted;
+  ARAN.hoisted = [];
   const statements1 = ArrayLite.concat(
-    ARAN.cut.$Arrival(
-      ARAN.context.strict,
-      node.type === "ArrowFunctionExpression"),
     (
       node.type === "ArrowFunctionExpression" ?
-      [] :
+      (
+        local1 = ARAN.build.read(
+          Escape("this")),
+        local2 = ARAN.cut.$drop(local1),
+        (
+          local1 === local2 ?
+          [] :
+          Build.Statement(local2))) :
       ARAN.cut.Declare(
-        "let",
+        "const",
         "this",
-        ARAN.cut.$this())),
-    Interim.Declare(
-      "arguments",
-      ARAN.cut.$arguments()),
+        ARAN.build.read(
+          Escape("this")))),
     (
-      node.type === "ArrowFunctionExpression" ?
-      [] :
+      (
+        node.type !== "ArrowFunctionExpression" &&
+        clean(
+          ArrayLite.slice(node.params))) ?
       ARAN.cut.Declare(
         "let",
         "arguments",
-        ARAN.cut.$copy0before(
-          Interim.read("arguments")))),
-    ArrayLite.flaten(
-      ArrayLite.map(
-        node.params,
-        (param, index) => (
-          param.type === "RestElement" ?
-          ArrayLite.concat(
-            Interim.Declare(
-              "argument_index",
-              ARAN.cut.primitive(index)),
-            Interim.Declare(
-              "argument_rest",
-              ARAN.cut.array([])),
-            ARAN.cut.While(
-              ARAN.cut.binary(
-                "<",
-                Interim.read("argument_index")),
-                ARAN.cut.get(
-                  Interim.read("arguments"),
-                  ARAN.cut.primitive("length")),
-              ArrayLite.concat(
-                Build.Statement(
-                  ARAN.cut.set(
-                    Interim.read("argument_rest"),
-                    ARAN.cut.binary(
-                      "-",
-                      Interim.read("argument_index"),
-                      ARAN.cut.primitive(index)),
-                    ARAN.cut.get(
-                      Interim.read("arguments"),
-                      Interim.read("argument_index")))),
-                Build.Statement(
-                  Interim.write.write(
-                    "argument_index",
-                    ARAN.cut.binary(
-                      "+",
-                      Interim.read("argument_index"),
-                      ARAN.cut.primitive(1)))))),
-            Util.Declare(
-              "let",
-              param.argument,
-              Interim.read("argument_rest"))) :
-          Util.Declare(
+        ARAN.cut.$copy(
+          0,
+          ARAN.build.read(
+            Escape("arguments")))) :
+      []),
+    (
+      (
+        node.params.length &&
+        node.params[node.params.length-1].type === "RestElement") ?
+      ArrayLite.concat(
+        Interim.Declare(
+          "iterator",
+          ARAN.cut.invoke(
+            ARAN.build.read(
+              Escape("arguments")),
+            ARAN.cut.$builtin("iterator"),
+            [])),
+        ArrayLite.flatenMap(
+          node.params,
+          (pattern) => Util.Declare(
             "let",
-            param,
-            ARAN.cut.get(
-              ARAN.cut.$copy0before(
-                Build.read("arguments")),
-              ARAN.cut.primitive(index)))))),
-    ARAN.cut.$Drop0());
+            pattern.argument,
+            (
+              pattern.type === "RestElement" ?
+              ARAN.cut.apply(
+                ARAN.cut.$builtin("rest"),
+                [
+                  Interim.read("iterator")]) :
+              ARAN.cut.get(
+                ARAN.cut.invoke(
+                  Interim.read("iterator"),
+                  ARAN.cut.primitive("next"),
+                  []),
+                ARAN.cut.primitive("value")))))) :
+      ArrayLite.flatenMap(
+        node.params,
+        (pattern, index) => Util.Declare(
+          "let",
+          pattern,
+          ARAN.cut.get(
+            (
+              index === node.params.length-1 ?
+              ARAN.build.read(
+                Escape("arguments")) :
+              ARAN.cut.$copy(
+                0,
+                ARAN.build.read(
+                  Escape("arguments")))),
+            ARAN.cut.primitive(index))))));
   const statements2 = (
     node.expression ?
     ARAN.cut.Return(
       Visit.expression(node.body)) :
     ArrayLite.concat(
-      ArrayLite.flaten(
-        ArrayLite.map(
-          node.body.body,
-          Visit.Statement)),
-        ARAN.cut.Return(
-          ARAN.cut.primitive(void 0))));
-  debugger;
+      ArrayLite.flatenMap(
+        node.body.body,
+        Visit.Statement),
+      ARAN.cut.Return(
+        ARAN.cut.primitive(void 0))));
   const expression = ARAN.cut.closure(
-    ARAN.context.strict,
+    node.AranStrict,
     ArrayLite.concat(
       statements1,
-      ArrayLite.flaten(ARAN.context.hoisted),
+      ArrayLite.flaten(ARAN.hoisted),
       statements2));
-  ARAN.context = temporary;
+  ARAN.hoisted = temporary;
   return (
     node.id ?
     ARAN.cut.apply(
@@ -16166,36 +16710,47 @@ exports.closure = (node) => {
     expression);
 };
 
-},{"../../build":33,"../context.js":43,"../interim.js":45,"../visit":56,"./index.js":49,"array-lite":28}],48:[function(require,module,exports){
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"../../escape.js":45,"../interim.js":48,"../visit":60,"./index.js":53,"array-lite":28}],52:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
-const Build = require("../../build");
-const Context = require("../context.js");
+const Escape = require("../../escape.js");
 const Visit = require("../visit");
 const Util = require("./index.js");
 
-exports.Declaration = (node) => ArrayLite.flaten(
-  ArrayLite.map(
-    node.declarations,
-    (declarator, temporary) => (
-      declarator.init ?
+exports.Declaration = (node) => ArrayLite.flatenMap(
+  node.declarations,
+  (declarator, local) => (
+    declarator.init ?
+    (
+      declarator.init.AranTerminate ?
+      ArrayLite.concat(
+        ARAN.cut.$Drop(ARAN.terminate),
+        Util.Declare(
+          node.kind,
+          declarator.id,
+          ARAN.build.write(
+            ARAN.terminate,
+            ARAN.cut.$copy(
+              0,
+              Visit.expression(declarator.init))))) :
       Util.Declare(
         node.kind,
         declarator.id,
-        Visit.expression(declarator.init)) :
+        Visit.expression(declarator.init))) :
+    (
+      local = ARAN.cut.Declare(
+        node.kind,
+        declarator.id.name,
+        ARAN.cut.primitive(void 0)),
       (
-        temporary = ARAN.cut.Declare(
-          node.kind,
-          declarator.id.name,
-          ARAN.cut.primitive(void 0)),
+        node.kind === "var" ?
         (
-          node.kind === "var" ?
-          (
-            ARAN.context.hoisted[ARAN.context.hoisted.length] = temporary,
-            []) :
-          temporary)))));
+          ARAN.hoisted[ARAN.hoisted.length] = local,
+          []) :
+        local))));
 
-},{"../../build":33,"../context.js":43,"../visit":56,"./index.js":49,"array-lite":28}],49:[function(require,module,exports){
+},{"../../escape.js":45,"../visit":60,"./index.js":53,"array-lite":28}],53:[function(require,module,exports){
 
 Object.assign(
   exports,
@@ -16205,20 +16760,21 @@ Object.assign(
   require("./declaration.js"),
   require("./property.js"));
 
-},{"./body.js":46,"./closure.js":47,"./declaration.js":48,"./pattern":52,"./property.js":54}],50:[function(require,module,exports){
+},{"./body.js":50,"./closure.js":51,"./declaration.js":52,"./pattern":56,"./property.js":58}],54:[function(require,module,exports){
 
-const Build = require("../../../build");
+const Interim = require('../../interim.js');
 const Visit = require("../../visit");
 const Util = require("../index.js");
 
 module.exports = (transformers, pairs) => {
   const result = [];
+  debugger;
   for (let index1=0; index1<pairs.length; index1++) {
     const left = pairs[index1][0];
     const right = pairs[index1][1];
     if (left === null) {
       result[result.length] = transformers.expression(
-        ARAN.cut.$drop.after(right));
+        ARAN.cut.$drop(right));
     } else if (left.type === "Identifier") {
       result[result.length] = transformers.binding(left.name, right);
     } else if (left.type === "MemberExpression") {
@@ -16233,21 +16789,21 @@ module.exports = (transformers, pairs) => {
         ARAN.cut.conditional(
           ARAN.cut.binary(
             "===",
-            Build.write(
-              Hide("default"+index1),
-              ARAN.cut.$copy0.after(right)),
+            Interim.hoist(
+              "default"+index1,
+              ARAN.cut.$copy(0, right)),
             ARAN.cut.primitive(void 0)),
-          ARAN.cut.$drop.before(
+          ARAN.cut.$drop(
             Visit.expression(left.right)),
-          Hide("default"+index1))];
+          Interim.read("default"+index1))];
     } else if (left.type === "ArrayPattern") {
       if (left.elements.length === 0) {
         result[result.length] = transformers.expression(
-          ARAN.cut.$drop.after(right));
+          ARAN.cut.$drop(right));
       } else {
         result[result.length] = transformers.expression(
-          Build.write(
-            Hide("iterator"+index1),
+          Interim.hoist(
+            "iterator"+index1,
             ARAN.cut.invoke(
               right,
               ARAN.cut.$builtin("iterator"),
@@ -16256,81 +16812,81 @@ module.exports = (transformers, pairs) => {
         for (let index2=0; index2<last; index2++)
           pairs[pairs.length] = [
             left.elements[index2],
-            ARAN.cut.invoke(
-              ARAN.cut.$copy0.before(
-                Build.read(
-                  Hide("iterator"+index))),
-              ARAN.cut.primitive("next"),
-              [])];
+            ARAN.cut.get(
+              ARAN.cut.invoke(
+                ARAN.cut.$copy(
+                  0,
+                  Interim.read("iterator"+index1)),
+                ARAN.cut.primitive("next"),
+                []),
+              ARAN.cut.primitive("value"))];
         pairs[pairs.length] = (
           left.elements[last].type === "RestElement" ?
           [
             left.elements[last].argument,
             ARAN.cut.apply(
-              ARAN.cut.builtin("rest"),
+              ARAN.cut.$builtin("rest"),
               [
-                ARAN.cut.array([]),
-                Hide("iterator"+index)])] :
+                Interim.read("iterator"+index1)])] :
           [
             left.elements[last],
-            ARAN.cut.invoke(
-              Build.read(
-                Hide("iterator"+index)),
-              ARAN.cut.primitive("next"),
-              [])]);
+            ARAN.cut.get(
+              ARAN.cut.invoke(
+                Interim.read("iterator"+index1),
+                ARAN.cut.primitive("next"),
+                []),
+              ARAN.cut.primitive("value"))]);
       }
     } else if (left.type === "ObjectPattern") {
-      if (left.properties.length) {
+      if (!left.properties.length) {
         result[result.length] = transformers.expression(
-          ARAN.cut.$drop.after(right));
+          ARAN.cut.$drop(right));
       } else {
         result[result.length] = transformers.expression(
-          Build.write(
-            Hide("object"+index1),
+          Interim.hoist(
+            "object"+index1,
             right));
-        const last = left.properties.length - 1;
-        for (let index2=0; index2<last; index2++)
+        for (let index2=0; index2<left.properties.length; index2++)
           pairs[pairs.length] = [
             left.properties[index2].value,
             ARAN.cut.get(
-              ARAN.cut.$copy0.before(
-                Build.read(
-                  Hide("object"+index1))),
-              Property.property(left.properties[index2]))];
-        pairs[pairs.length] = [
-          left.properties[last].value,
-          ARAN.cut.get(
-            Build.read(
-              Hide("object"+index1))),
-            Property.property(left.properties[last])];
+              (
+                index2 === left.properties.length - 1 ?
+                Interim.read("object"+index1) :
+                ARAN.cut.$copy(
+                  0,
+                  Interim.read("object"+index1))),
+              Util.property(
+                {
+                  computed: left.properties[index2].computed,
+                  property: left.properties[index2].key }))];
       }
     }
   }
   return result;
 };
 
-},{"../../../build":33,"../../visit":56,"../index.js":49}],51:[function(require,module,exports){
+},{"../../interim.js":48,"../../visit":60,"../index.js":53}],55:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
-const Build = require("../../../build");
 const Common = require("./common.js");
 
 const transformerss = {
   var: {
-    expression: Build.Statement,
+    expression: (expression) => ARAN.build.Statement(expression),
     binding: (identifier, expression) => {
-      ARAN.context.hoisted[ARAN.context.hoisted.length] = ARAN.cut.Declare(
+      ARAN.hoisted[ARAN.hoisted.length] = ARAN.cut.Declare(
         "var",
         identifier,
         ARAN.cut.primitive(void 0));
-      return Build.Statement(
+      return ARAN.build.Statement(
         ARAN.cut.write(identifier, expression));
     }},
   let: {
-    expression: Build.Statement,
+    expression: (expression) => ARAN.build.Statement(expression),
     binding: (identifier, expression) => ARAN.cut.Declare("let", identifier, expression)},
   const: {
-    expression: Build.Statement,
+    expression: (expression) => ARAN.build.Statement(expression),
     binding: (identifier, expression) => ARAN.cut.Declare("const", identifier, expression)}};
 
 exports.Declare = (kind, pattern, expression) => ArrayLite.flaten(
@@ -16341,19 +16897,18 @@ exports.Declare = (kind, pattern, expression) => ArrayLite.flaten(
         pattern,
         expression]]));
 
-},{"../../../build":33,"./common.js":50,"array-lite":28}],52:[function(require,module,exports){
+},{"./common.js":54,"array-lite":28}],56:[function(require,module,exports){
 
 exports.write = require("./write.js").write;
 exports.Declare = require("./declare.js").Declare;
 
-},{"./declare.js":51,"./write.js":53}],53:[function(require,module,exports){
+},{"./declare.js":55,"./write.js":57}],57:[function(require,module,exports){
 
-const Build = require("../../../build");
 const Common = require("./common.js");
 
 const identity = (argument) => argument;
 
-exports.write = (pattern, expression) => Build.sequence(
+exports.write = (pattern, expression) => ARAN.build.sequence(
   Common(
     {
       expression: identity,
@@ -16363,7 +16918,7 @@ exports.write = (pattern, expression) => Build.sequence(
         pattern,
         expression]]));
 
-},{"../../../build":33,"./common.js":50}],54:[function(require,module,exports){
+},{"./common.js":54}],58:[function(require,module,exports){
 
 const Visit = require("../visit");
 
@@ -16375,10 +16930,9 @@ exports.property = (node) => (
     ARAN.cut.primitive(node.property.name) :
     ARAN.cut.primitive(node.property.value)));
 
-},{"../visit":56}],55:[function(require,module,exports){
+},{"../visit":60}],59:[function(require,module,exports){
 
 const ArrayLite = require("array-lite");
-const Build = require("../../build");
 const Interim = require("../interim.js");
 const Util = require("../util");
 const Visit = require("./index.js");
@@ -16396,7 +16950,7 @@ exports.ArrayExpression = (node) => ARAN.cut.array(
       ARAN.cut.primitive(void 0))));
 
 exports.ObjectExpression = (node) => (
-  ArrayLite.all(
+  ArrayLite.every(
     node.properties,
     (property) => property.kind === "init") ?
   ARAN.cut.object(
@@ -16439,32 +16993,33 @@ exports.ObjectExpression = (node) => (
               [
                 ARAN.cut.primitive(
                   property.kind === "init" ? "value" : property.kind),
-                Visit.expression(property.value)]]))])));
+                Visit.expression(property.value)]]))]),
+    ARAN.cut.object([])));
 
 exports.ArrowFunctionExpression = (node) => Util.closure(node);
 
 exports.FunctionExpression = (node) => Util.closure(node);
 
-exports.SequenceExpression = (node) => Build.sequence(
+exports.SequenceExpression = (node) => ARAN.build.sequence(
   ArrayLite.map(
     node.expressions,
     (expression, index) => (
       index === node.expressions.length -1 ?
       Visit.expression(expression) :
-      ARAN.cut.$drop0after(
+      ARAN.cut.$drop(
         Visit.expression(expression)))));
 
 exports.UnaryExpression = (node) => (
   node.operator === "typeof" && node.argument.type === "Identifier" ?
   ARAN.cut.unary(
       "typeof",
-      Build.apply(
-        Build.closure(
+      ARAN.build.apply(
+        ARAN.build.closure(
           false,
-          Build.Try(
-            Build.Return(
+          ARAN.build.Try(
+            ARAN.build.Return(
               ARAN.cut.read(node.argument.name)),
-            Build.Return(
+            ARAN.build.Return(
               ARAN.cut.primitive(void 0)),
             [])),
         [])) :
@@ -16484,8 +17039,7 @@ exports.BinaryExpression = (node) => ARAN.cut.binary(
   Visit.expression(node.left),
   Visit.expression(node.right));
 
-// set invariant enforced (3 pop, 0 push)
-exports.AssignmentExpression = (node) => Build.sequence(
+exports.AssignmentExpression = (node) => ARAN.build.sequence(
   [
     (
       node.operator === "=" ?
@@ -16493,22 +17047,26 @@ exports.AssignmentExpression = (node) => Build.sequence(
         node.left,
         Interim.hoist(
           "value",
-          ARAN.cut.$copy0after(
+          ARAN.cut.$copy(
+            0,
             Visit.expression(node.right)))) :
       (
         node.left.type === "MemberExpression" ?
         ARAN.cut.set(
           Interim.hoist(
             "object",
-            ARAN.cut.$copy1after(
+            ARAN.cut.$copy(
+              1,
               Visit.expression(node.left.object))),
           Interim.hoist(
             "property",
-            ARAN.cut.$copy2after(
+            ARAN.cut.$copy(
+              2,
               Util.property(node.left))),
           Interim.hoist(
             "value",
-            ARAN.cut.$copy3after(
+            ARAN.cut.$copy(
+              3,
               ARAN.cut.binary(
                 apply(substring, node.operator, [0, node.operator.length-1]),
                 ARAN.cut.get(
@@ -16519,75 +17077,35 @@ exports.AssignmentExpression = (node) => Build.sequence(
           node.left.name,
           Interim.hoist(
             "value",
-            ARAN.cut.$copy0after(
+            ARAN.cut.$copy(
+              0,
               ARAN.cut.binary(
                 apply(substring, node.operator, [0, node.operator.length-1]),
                 ARAN.cut.read(node.left.name),
                 Visit.expression(node.right))))))),
     Interim.read("value")]);
 
-// set invariant non-enforced (3 pop, 1 push)
-// exports.AssignmentExpression = (node) => (
-//   node.left.type === "MemberExpression" ?
-//   ARAN.cut.set(
-//     (
-//       node.operator === "=" ?
-//       Visit.expression(node.left.object) :
-//       Interim.hoist(
-//         "object",
-//         Visit.expression(node.left.object))),
-//     (
-//       node.operator === "=" ?
-//       Util.property(node.left) :
-//       Interim.hoist(
-//         "property",
-//         Visit.expression(node.left))),
-//     (
-//       node.operator === "=" ?
-//       Visit.expression(node.right) :
-//       ARAN.cut.binary(
-//         apply(substring, node.operator, node.operator.length-1),
-//         ARAN.cut.get(
-//           Interim.read("object"),
-//           Interim.read("property")),
-//         Visit.expression(node.right)))) :
-//   Build.sequence(
-//     [
-//       (
-//         node.operator === "=" ?
-//         Util.write(
-//           node.left,
-//           Interim.hoist(
-//             "result",
-//             Visit.expression(node.right))) :
-//         ARAN.cut.write(
-//           node.left.name,
-//           ARAN.cut.binary(
-//             apply(substring, node.operator, node.operator.length-1),
-//             ARAN.cut.read(node.left.name),
-//             Interim.hoist(
-//               "result",
-//               Visit.expression(node.right))))),
-//       Interim.read("result")]));
-
-exports.UpdateExpression = (node) => Build.sequence(
+exports.UpdateExpression = (node) => ARAN.build.sequence(
   [
     (
       node.argument.type === "MemberExpression" ?
       ARAN.cut.set(
         Interim.hoist(
           "object",
-          ARAN.cut.$copy1after(
+          ARAN.cut.$copy(
+            1,
             Visit.expression(node.argument.object))),
         Interim.hoist(
           "property",
-          ARAN.cut.$copy2after(
+          ARAN.cut.$copy(
+            2,
             Util.property(node.argument))),
         (
           node.prefix ?
           Interim.hoist(
             "value",
-            ARAN.cut.$copy3after(
+            ARAN.cut.$copy(
+              3,
               ARAN.cut.binary(
                 node.operator[0],
                 ARAN.cut.get(
@@ -16608,7 +17126,8 @@ exports.UpdateExpression = (node) => Build.sequence(
           node.prefix ?
           Interim.hoist(
             "value",
-            ARAN.cut.$copy0after(
+            ARAN.cut.$copy(
+              0,
               ARAN.cut.binary(
                 node.operator[0],
                 ARAN.cut.read(node.argument.name),
@@ -16617,26 +17136,36 @@ exports.UpdateExpression = (node) => Build.sequence(
             node.operator[0],
             Interim.hoist(
               "value",
-              ARAN.cut.$copy0after(
+              ARAN.cut.$copy(
+                0,
                 ARAN.cut.read(node.argument.name))),
             ARAN.cut.primitive(1))))),
     Interim.read("value")]);
 
-exports.LogicalExpression = (node) => ARAN.cut.conditional(
-  Interim.hoist(
-      "logical",
-      ARAN.cut.$copy0after(
-        Visit.expression(node.left))),
-  (
-    node.operator === "||" ?
-    Interim.read("logic") :
-    ARAN.cut.$drop0before(
+// ACCESS GENERATED CODE
+exports.LogicalExpression = (node, local1, local2, local3) => (
+  local1 = Interim.read("logic"),
+  local2 = ARAN.cut.$drop(local1),
+  local3 = (
+    local1 === local2 ?
+    Visit.expression(node.right) :
+    ARAN.build.sequence(
+      local2,
       Visit.expression(node.right))),
-  (
-    node.operator === "&&" ?
-    Interim.read("logic") :
-    ARAN.cut.$drop0before(
-      Visit.expression(node.right))));
+  ARAN.cut.conditional(
+    Interim.hoist(
+      "logical",
+      ARAN.cut.$copy(
+        0,
+        Visit.expression(node.left))),
+    (
+      node.operator === "||" ?
+      Interim.read("logic") :
+      local3),
+    (
+      node.operator === "&&" ?
+      Interim.read("logic") :
+      local3)));
 
 exports.ConditionalExpression = (node) => ARAN.cut.conditional(
   Visit.expression(node.test),
@@ -16650,7 +17179,7 @@ exports.NewExpression = (node) => ARAN.cut.construct(
     Visit.expression));
 
 exports.CallExpression = (node) => (
-  ArrayLite.all(
+  ArrayLite.every(
     node.arguments,
     (argument) => argument.type !== "SpreadElement") ?
   (
@@ -16676,16 +17205,16 @@ exports.CallExpression = (node) => (
         (
           node.arguments.length === 1 ?
           Visit.expression(node.arguments[0]) :
-          Build.get(
-            Build.array(
+          ARAN.build.get(
+            ARAN.build.array(
               ArrayLite.map(
                 node.arguments,
                 (argument, index) => (
                   index ?
-                  ARAN.cut.drop0after(
+                  ARAN.cut.$drop(
                     Visit.expression(argument)) :
                   Visit.expression(argument)))),
-            Build.primitive(0))))))) :
+            ARAN.build.primitive(0))))))) :
   ARAN.cut.apply(
     ARAN.cut.builtin("apply"),
     [
@@ -16694,7 +17223,8 @@ exports.CallExpression = (node) => (
         ARAN.cut.get(
           Interim.hoist(
             "this",
-            ARAN.cut.$copy2after(
+            ARAN.cut.$copy(
+              2,
               Visit.expression(node.callee.object))),
           Util.property(node.callee)) :
         Visit.expression(node.callee)),
@@ -16702,10 +17232,10 @@ exports.CallExpression = (node) => (
         node.callee.type === "MemberExpression" ?
         Interim.read("this") :
         (
-          ARAN.context.strict ?
+          node.AranStrict ?
           ARAN.cut.primitive(void 0) :
           ARAN.cut.$builtin("global"))),
-      Build.sequence(
+      ARAN.build.sequence(
         ArrayLite.concat(
           [
             Interim.hoist(
@@ -16715,20 +17245,23 @@ exports.CallExpression = (node) => (
             node.arguments,
             (argument) => (
               argument.type === "SpreadElement" ?
-              Build.apply(
+              ARAN.build.apply(
                 ARAN.cut.$builtin(),
                 [
-                  ARAN.cut.$copy0before(
+                  ARAN.cut.$copy(
+                    0,
                     Interim.read("arguments")),
                   ARAN.cut.invoke(
                     Visit.expression(argument.argument),
                     ARAN.cut.builtin("iterator"),
                     [])]) :
               ARAN.cut.set(
-                ARAN.cut.$copy0before(
+                ARAN.cut.$copy(
+                  0,
                   Interim.read("arguments")),
                 ARAN.cut.get(
-                  ARAN.cut.$copy0before(
+                  ARAN.cut.$copy(
+                    0,
                     Interim.read("arguments")),
                   ARAN.cut.primitive("length")),
                 Visit.expression(argument)))),
@@ -16740,11 +17273,11 @@ exports.MemberExpression = (node) => ARAN.cut.get(
 
 exports.Identifier = (node) => (
   node.name === "undefined" ?
-  Build.conditional(
-    Build.binary(
+  ARAN.build.conditional(
+    ARAN.build.binary(
       "===",
-      Build.read("undefined"),
-      Build.primitive(void 0)),
+      ARAN.build.read("undefined"),
+      ARAN.build.primitive(void 0)),
     ARAN.cut.primitive(void 0),
     ARAN.cut.read("undefined")) :
   ARAN.cut.read(node.name));
@@ -16754,25 +17287,46 @@ exports.Literal = (node) => (
   ARAN.cut.regexp(node.regex.pattern, node.regex.flags) :
   ARAN.cut.primitive(node.value));
 
-},{"../../build":33,"../interim.js":45,"../util":49,"./index.js":56,"array-lite":28}],56:[function(require,module,exports){
+},{"../interim.js":48,"../util":53,"./index.js":60,"array-lite":28}],60:[function(require,module,exports){
 
+const Escape = require("../../escape.js");
 const Expression = require("./expression.js");
 const Statement = require("./statement.js");
+const defineProperty = Reflect.defineProperty;
 
 const visit = (visitors) => (node) => {
-  node.__min__ = ++ARAN.counter;
-  const temporary = ARAN.index;
-  ARAN.index = ARAN.counter;
+  defineProperty(node, "AranParent", {
+    configurable: true,
+    enumerable: false,
+    writable: true,
+    value: ARAN.parent
+  });
+  node.AranStrict = (
+    ARAN.parent.AranStrict &&
+    (
+      node.type === "FunctionExpression" ||
+      node.type === "FunctionDeclaration" ||
+      node.type === "ArrowFunctionExpression") &&
+    !node.expression &&
+    node.body.body.length &&
+    node.body.body[0].type === "ExpressionStatement" &&
+    node.body.body[0].expression.type === "Literal" &&
+    node.body.body[0].expression.value === "use strict");
+  node.AranIndex = ++ARAN.counter;
+  if (ARAN.nodes)
+    ARAN.nodes[ARAN.counter] = node;
+  const temporary = ARAN.parent;
+  ARAN.parent = node;
   const result = visitors[node.type](node);
-  ARAN.index = temporary;
-  node.__max__ = ARAN.counter;
+  ARAN.parent = temporary;
+  node.AranMaxIndex = ARAN.counter;
   return result;
 };
 
 exports.Statement = visit(Statement);
 exports.expression = visit(Expression);
 
-},{"./expression.js":55,"./statement.js":57}],57:[function(require,module,exports){
+},{"../../escape.js":45,"./expression.js":59,"./statement.js":61}],61:[function(require,module,exports){
 
 // The visitors of this file returns a list of statement.
 // This is safe provided that control structures (if|while|do-while|for|for-in|label) have a statement block as body.
@@ -16781,7 +17335,7 @@ exports.expression = visit(Expression);
 // Yet, this transformation is safe because the body of the above structure cannot be a declaration (see http://www.ecma-international.org/ecma-262/6.0/#sec-statements).
 
 const ArrayLite = require("array-lite");
-const Build = require("../../build");
+const Escape = require("../../escape.js");
 const Interim = require("../interim.js");
 const Util = require("../util");
 const Visit = require("./index.js");
@@ -16789,15 +17343,21 @@ const Visit = require("./index.js");
 exports.EmptyStatement = (node) => [];
 
 exports.BlockStatement = (node) => ARAN.cut.Block(
-  ArrayLite.flaten(
-    ArrayLite.map(
-      node.body,
-      Visit.Statement)));
+  ArrayLite.flatenMap(
+    node.body,
+    Visit.Statement));
 
-exports.ExpressionStatement = (node) => ArrayLite.concat(
-  Build.Statement(
-      Visit.expression(node.expression)),
-  ARAN.cut.$Drop0());
+exports.ExpressionStatement = (node) => (
+  node.expression.AranTerminate ?
+  ArrayLite.concat(
+    ARAN.cut.$Drop(ARAN.terminate),
+    ARAN.build.Statement(
+      ARAN.build.write(
+        ARAN.terminate,
+        Visit.expression(node.expression)))) :
+  ARAN.build.Statement(
+    ARAN.cut.$drop(
+      Visit.expression(node.expression))));
 
 exports.IfStatement = (node) => ARAN.cut.If(
   Visit.expression(node.test),
@@ -16811,11 +17371,9 @@ exports.LabeledStatement = (node) => ARAN.cut.Label(
   node.label.name,
   Util.Body(node.body));
 
-exports.BreakStatement = (node) => ARAN.cut.Break(
-  node.label ? node.label.name : null);
+exports.BreakStatement = (node) => ARAN.cut.Break(node.label ? node.label.name : null);
 
-exports.ContinueStatement = (node) => ARAN.cut.Continue(
-  node.label ? node.label.name : null);
+exports.ContinueStatement = (node) => ARAN.cut.Continue(node.label ? node.label.name : null);
 
 exports.WithStatement = (node) => ARAN.cut.With(
   Visit.expression(node.object),
@@ -16833,14 +17391,13 @@ exports.SwitchStatement = (node) => ArrayLite.concat(
           clause.test ?
           ARAN.cut.binary(
             "===",
-            ARAN.cut.$copy0before(
+            ARAN.cut.$copy(
               Interim.read("switch")),
             Visit.expression(clause.test)) :
           ARAN.cut.primitive(true)),
-        ArrayLite.flaten(
-          ArrayLite.map(
-            clause.consequent,
-            Visit.Statement))])),
+        ArrayLite.flatenMap(
+          clause.consequent,
+          Visit.Statement)])),
   ARAN.cut.$Drop0());
 
 exports.ReturnStatement = (node) => ARAN.cut.Return(
@@ -16853,48 +17410,54 @@ exports.ThrowStatement = (node) => ARAN.cut.Throw(
   Visit.expression(node.argument));
 
 exports.TryStatement = (node) => ARAN.cut.Try(
-  ArrayLite.flaten(
-    ArrayLite.map(
-      node.block.body,
-      Visit.Statement)),
+  ArrayLite.flatenMap(
+    node.block.body,
+    Visit.Statement),
   (
     node.handler ?
     ArrayLite.concat(
       Util.Declare(
         "let",
         node.handler.param,
-        Build.read("error")),
-      ArrayLite.flaten(
-        ArrayLite.map(
-          node.handler.body.body,
-          Visit.Statement))) :
+        ARAN.build.read(
+          Escape("error"))),
+      ArrayLite.flatenMap(
+        node.handler.body.body,
+        Visit.Statement)) :
     []),
   (
     node.finalizer ?
-    ArrayLite.flaten(
-      ArrayLite.map(
-        node.finalizer.body,
-        Visit.Statement)) :
+    ArrayLite.flatenMap(
+      node.finalizer.body,
+      Visit.Statement) :
     []));
 
 exports.WhileStatement = (node) => ARAN.cut.While(
   Visit.expression(node.test),
+  (
+    node.AranParent.type === "LabeledStatement" ?
+    node.AranParent.label.name :
+    null),
   Util.Body(node.body));
 
 exports.DoWhileStatement = (node) => ArrayLite.concat(
   Interim.Declare(
     "dowhile",
-    Build.primitive(true)),
+    ARAN.build.primitive(true)),
   ARAN.cut.While(
-    Build.conditional(
+    ARAN.build.conditional(
       Interim.read("dowhile"),
-      Build.sequence(
+      ARAN.build.sequence(
         [
           Interim.write(
             "dowhile",
-            Build.primitive(false)),
+            ARAN.build.primitive(false)),
           ARAN.cut.primitive(true)]),
       Visit.expression(node.test)),
+    (
+      node.AranParent.type === "LabeledStatement" ?
+      node.AranParent.label.name :
+      null),
     Util.Body(node.body)));
 
 // for (let x; y; z) { ... }
@@ -16904,22 +17467,24 @@ exports.DoWhileStatement = (node) => ArrayLite.concat(
 //   while (y) { ... z; }
 // }
 
-exports.ForStatement = (node) => ARAN.cut.Block(
-  ArrayLite.concat(
-    (
-      node.init.type === "VariableDeclaration" ?
-      Util.Declaration(node.init) :
-      ArrayLite.concat(
-        Build.Statement(
-          Visit.expression(node.init)),
-        ARAN.cut.$Drop0())),
-    ARAN.cut.While(
-      Visit.expression(node.test),
-      ArrayLite.concat(
-        Util.Body(node.body),
-        Build.Statement(
-          Visit.expression(node.update)),
-        ARAN.cut.$Drop0()))));
+exports.ForStatement = (node) => ARAN.cut.For(
+  (
+    node.init.type === "VariableDeclaration" ?
+    Util.Declaration(node.init) :
+    ARAN.build.Statement(
+      ARAN.cut.$drop(
+        Visit.expression(node.init)))),
+  Visit.expression(node.test),
+  (
+    node.update ?
+    ARAN.cut.$drop(
+      Visit.expression(node.update)) :
+    ARAN.build.primitive(null)),
+  (
+    node.AranParent.type === "LabeledStatement" ?
+    node.AranParent.label.name :
+    null),
+  Util.Body(node.body));
 
 // for (let k in o) { ... }
 //
@@ -16938,7 +17503,7 @@ exports.ForStatement = (node) => ARAN.cut.Block(
 //   }
 // }
 
-exports.ForInStatement = (node) => ARAN.cut.Block(
+exports.ForInStatement = (node) => ARAN.cut.For(
   ArrayLite.concat(
     (
       node.left.type === "VariableDeclaration" ?
@@ -16946,51 +17511,53 @@ exports.ForInStatement = (node) => ARAN.cut.Block(
       []),
     Interim.Declare(
       "object",
-      node.right),
-    ARAN.cut.While(
-      Interim.read("object"),
-      ArrayLite.concat(
-        Interim.Declare(
-          "keys",
-          ARAN.cut.apply(
-            ARAN.cut.$builtin("keys"),
-            [
-              Interim.read("object")])),
-        Build.Statement(
-          Interim.write(
-            "object",
-            ARAN.cut.apply(
-              ARAN.cut.$builtin("getPrototypeOf"),
-              [
-                Interim.read("object")]))),
-        Interim.Declare(
-          "index",
-          ARAN.cut.primitive(0)),
-        ARAN.cut.While(
-          ARAN.cut.binary(
-            "<",
-            Interim.read("index"),
-            ARAN.cut.get(
-              Interim.read("keys"),
-              ARAN.cut.primitive("length"))),
-          ArrayLite.concat(
-            Build.Statement(
-              Util.write(
-                (
-                  node.left.type === "VariableDeclaration" ?
-                  node.left.declarations[0].id :
-                  node.left),
-                ARAN.cut.get(
-                  Interim.read("keys"),
-                  Interim.read("index")))),
-            Build.Statement(
-              Interim.write(
-                "index",
-                ARAN.cut.binary(
-                  "+",
-                  Interim.read("index"),
-                  ARAN.cut.primitive(1)))),
-            Util.Body(node.body)))))));
+      Visit.expression(node.right))),
+  Interim.read("object"),
+  Interim.write(
+    "object",
+    ARAN.cut.apply(
+      ARAN.cut.$builtin("getPrototypeOf"),
+      [
+        Interim.read("object")])),
+  null,
+  ARAN.cut.For(
+    ArrayLite.concat( 
+      Interim.Declare(
+        "keys",
+        ARAN.cut.apply(
+          ARAN.cut.$builtin("keys"),
+          [
+            Interim.read("object")])),
+      Interim.Declare(
+        "index",
+        ARAN.cut.primitive(0))),
+    ARAN.cut.binary(
+      "<",
+      Interim.read("index"),
+      ARAN.cut.get(
+        Interim.read("keys"),
+        ARAN.cut.primitive("length"))),
+    Interim.write(
+      "index",
+      ARAN.cut.binary(
+        "+",
+        Interim.read("index"),
+        ARAN.cut.primitive(1))),
+    (
+      node.AranParent.type === "LabeledStatement" ?
+      node.AranParent.label.name :
+      null),
+    ArrayLite.concat(
+      ARAN.build.Statement(
+        Util.write(
+          (
+            node.left.type === "VariableDeclaration" ?
+            node.left.declarations[0].id :
+            node.left),
+          ARAN.cut.get(
+            Interim.read("keys"),
+            Interim.read("index")))),
+      Util.Body(node.body))));
 
 // The left member is executed at every loop:
 // > for (o[(console.log("kaka"),"grunt")] in {foo:"bar", buz:"qux"}) console.log(o);
@@ -17007,7 +17574,7 @@ exports.ForInStatement = (node) => ARAN.cut.Block(
 //   ...
 // }
 
-exports.ForOfStatement = (node) => ARAN.cut.Block(
+exports.ForOfStatement = (node) => ARAN.cut.For(
   ArrayLite.concat(
     (
       node.left.type === "VariableDeclaration" ?
@@ -17016,43 +17583,43 @@ exports.ForOfStatement = (node) => ARAN.cut.Block(
     Interim.Declare(
       "iterator",
       ARAN.cut.invoke(
-        node.right,
+        Visit.expression(node.right),
         ARAN.cut.$builtin("iterator"),
-        [])),
-    ARAN.cut.While(
-      ARAN.cut.unary(
-        "!",
-        ARAN.cut.get(        
-          Interim.hoist(
-            "step",
-            ARAN.cut.invoke(
-              Interim.read("iterator"),
-              ARAN.cut.primitive("next"),
-              [])),
-          ARAN.cut.primitive("done"))),
-      ArrayLite.concat(
-        Build.Statement(
-          Util.write(
-            (
-              node.left.type === "VariableDeclaration" ?
-              node.left.declarations[0].id :
-              node.left),
-            ARAN.cut.get(
-              Interim.read("step"),
-              ARAN.cut.primitive("value")))),
-        Util.Body(node.body)))));
+        []))),
+  ARAN.cut.unary(
+    "!",
+    ARAN.cut.get(
+      Interim.hoist(
+        "step",
+        ARAN.cut.invoke(
+          Interim.read("iterator"),
+          ARAN.cut.primitive("next"),
+          [])),
+      ARAN.cut.primitive("done"))),
+  Util.write(
+    (
+      node.left.type === "VariableDeclaration" ?
+      node.left.declarations[0].id :
+      node.left),
+    ARAN.cut.get(
+      Interim.read("step"),
+      ARAN.cut.primitive("value"))),
+  (
+    node.AranParent.type === "LabeledStatement" ?
+    node.AranParent.label.name :
+    null),
+  Util.Body(node.body));
 
-exports.DebuggerStatement = (node) => Build.Debugger();
+exports.DebuggerStatement = (node) => ARAN.build.Debugger();
 
 exports.FunctionDeclaration = (node) => {
-  ARAN.context.hoisted.push(
-    ARAN.cut.Declare(
-      "var",
-      node.id.name,
-      Util.closure(node)));
+  ARAN.hoisted[ARAN.hoisted.length] = ARAN.cut.Declare(
+    "var",
+    node.id.name,
+    Util.closure(node));
   return [];
 };
 
 exports.VariableDeclaration = (node) => Util.Declaration(node);
 
-},{"../../build":33,"../interim.js":45,"../util":49,"./index.js":56,"array-lite":28}]},{},[1]);
+},{"../../escape.js":45,"../interim.js":48,"../util":53,"./index.js":60,"array-lite":28}]},{},[1]);

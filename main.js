@@ -1,21 +1,24 @@
 
-const Esprima = require("esprima");
-const Escodegen = require("escodegen");
-// const Esvalid = require("esvalid");
+const Acorn = require("acorn");
+const Astring = require("astring");
 const Aran = require("aran");
 
-module.exports = (advice, script1) => {
-  global.aran = advice;
-  const aran = Aran("aran");
-  const root1 = Esprima.parse(script1);
-  const root2 = aran.join(root1, Object.keys(advice));
-  // console.log(Esvalid.errors(root2)[0]);
-  // console.log(JSON.stringify(root2, null, 2));
-  const script2 = Escodegen.generate(root2);
+module.exports = (Advice, script1) => {
+  const aran = Aran({
+    namespace: "META",
+    output: "EstreeValid"
+  });
+  const join = (script, strict) => Astring.generate(
+    aran.join(
+      Acorn.parse(script, {loc:true}),
+      Object.keys(global.META),
+      strict));
+  global.META = Advice(aran, join);
+  const script2 = join(script1);
   try {
     return {
       script: script2,
-      value: eval(script2)
+      value: global.eval(script2)
     };
   } catch (error) {
     return {
