@@ -2,7 +2,7 @@
 (function () {
   var o = {a:1};
   if (o.a++ !== 1)
-    throw "MemberUpdate1";
+    throw new Error("MemberUpdate1");
   if (++o.a !== 3)
-    throw "MemberUpdate2";
+    throw new Error("MemberUpdate2");
 } ());

@@ -3,5 +3,5 @@
   var o = {a:1};
   delete o.a;
   if ("a" in o)
-    throw "MemberDelete";
+    throw new Error("MemberDelete");
 } ());

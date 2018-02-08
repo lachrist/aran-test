@@ -11,7 +11,7 @@
     f = true;
   }
   if (c !== "ok")
-    throw "Throw1";
+    throw new Error("Throw1");
   if (!f)
-    throw "Throw2";
+    throw new Error("Throw2");
 } ());

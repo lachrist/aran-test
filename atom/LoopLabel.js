@@ -4,5 +4,5 @@
       break a;
   }
   if (i !== 5)
-    throw "LoopLabel";
+    throw new Error("LoopLabel");
 } ());

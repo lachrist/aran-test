@@ -2,8 +2,8 @@
 (function () {
   function f () {
     return;
-    throw "Return1";
+    throw new Error("Return1");
   }
   if (f() !== undefined)
-    throw "Return2";
+    throw new Error("Return2");
 } ());

@@ -4,12 +4,12 @@
   while (x) {
     x = false;
     continue;
-    throw "Continue1";
+    throw new Error("Continue1");
   }
   var y = true;
   a : while (y) {
     y = false;
     continue a;
-    throw "Continue2"
+    throw new Error("Continue2");
   }
 } ());

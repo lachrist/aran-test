@@ -3,5 +3,5 @@
   var o = {};
   function F () { return o }
   if (new F() !== o)
-    throw "New";
+    throw new Error("New");
 } ());

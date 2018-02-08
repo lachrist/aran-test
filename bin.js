@@ -18,9 +18,7 @@ const trail = (string, size) => {
 
 if (/\.js$/.test(process.argv[3])) {
   const Advice = require(Path.resolve(process.argv[2]));
-  const test = AranTest(
-    Advice,
-    Fs.readFileSync(process.argv[3], "utf8"));
+  const test = Advice()(Fs.readFileSync(process.argv[3], "utf8"));
   console.log(test.script);
   if ("value" in test) {
     console.log("success", test.value);
@@ -31,9 +29,7 @@ if (/\.js$/.test(process.argv[3])) {
   const Advice = require(Path.resolve(process.argv[2]));
   const failures = [];
   Fs.readdirSync(process.argv[3]).filter(sanitize).forEach((filename) => {
-    const test = AranTest(
-      Advice,
-      Fs.readFileSync(trailing(process.argv[3])+filename, "utf8"));
+    const test = Advice()(Fs.readFileSync(process.argv[3], "utf8"));
     if ("value" in test) {
       console.log(trail(filename, 25), "success", test.value);
     } else {

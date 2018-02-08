@@ -2,5 +2,5 @@
 (function () {
   function f () { return 1 }
   if (f() !== 1)
-    throw "Function";
+    throw new Error("Function");
 } ());

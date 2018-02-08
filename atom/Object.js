@@ -8,10 +8,10 @@
     set c (v) {}
   };
   if (o.a !== 1)
-    throw "Object1"
+    throw new Error("Object1");
   if (o.b !== 2)
-    throw "Object2";
+    throw new Error("Object2");
   o.c = 666;
   if (o.c !== 3)
-    throw "Object3";
+    throw new Error("Object3");
 } ());

@@ -2,7 +2,7 @@
 (function () {
   var {x, y:z} = {x:"foo", y:"bar"};
   if (x !== "foo")
-    throw "PatternObject1";
+    throw new Error("PatternObject1");
   if (z !== "bar")
-    throw "PatternObject2";
+    throw new Error("PatternObject2");
 } ());

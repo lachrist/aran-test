@@ -8,13 +8,12 @@ module.exports = (Advice, script1) => {
     namespace: "META",
     output: "EstreeValid"
   });
-  const join = (script, strict) => Astring.generate(
-    aran.join(
-      Acorn.parse(script, {loc:true}),
-      Object.keys(global.META),
-      strict));
+  const join = (script, parent) => Astring.generate(aran.join(
+    Acorn.parse(script, {loc:true}),
+    Object.keys(global.META),
+    parent));
   global.META = Advice(aran, join);
-  const script2 = join(script1);
+  const script2 = join(script1, null);
   try {
     return {
       script: script2,

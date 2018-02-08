@@ -3,5 +3,5 @@
   var x;
   for (x of ["foo"]) {}
   if (x !== "foo")
-    throw "ForOf";
+    throw new Error("ForOf");
 } ());

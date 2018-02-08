@@ -2,5 +2,5 @@
 (function () {
   for (var x of ["foo"]) {}
   if (x !== "foo")
-    throw "ForOf";
+    throw new Error("ForOf");
 } ());

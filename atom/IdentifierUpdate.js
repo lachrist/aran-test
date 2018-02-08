@@ -2,7 +2,7 @@
 (function () {
   var x = 1;
   if (x++ !== 1)
-    throw "IdentifierUpdate1";
+    throw new Error("IdentifierUpdate1");
   if (++x !== 3)
-    throw "IdentifierUpdate2";
+    throw new Error("IdentifierUpdate2");
 } ());

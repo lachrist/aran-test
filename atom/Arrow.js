@@ -3,9 +3,9 @@
   var a1 = () => "foo";
   var a2 = () => { return "bar" };
   if (a1() !== "foo")
-    throw "Arrow1";
+    throw new Error("Arrow1");
   if (a2() !== "bar")
-    throw "Arrow2";
+    throw new Error("Arrow2");
   var check = false;
   try {
     new a1();
@@ -13,5 +13,5 @@
     check = true;
   }
   if (!check)
-    throw "Arrow3";
+    throw new Error("Arrow3");
 } ());

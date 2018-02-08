@@ -2,10 +2,10 @@
 (function () {
   a:{
     break a;
-    throw "Break1";
+    throw new Error("Break1");
   }
   while (true) {
     break;
-    throw "Break2"
+    throw new Error("Break2");
   }
 } ());

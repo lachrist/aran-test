@@ -4,8 +4,8 @@
     let l = "foo";
     l = "bar"
     if (l !== "bar")
-      throw "Let1";
+      throw new Error("Let1");
   }
   if (typeof l !== "undefined")
-    throw "Let2";
+    throw new Error("Let2");
 } ());

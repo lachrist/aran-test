@@ -2,10 +2,10 @@
 (function () {
   if (true) {
   } else {
-    throw "If1";
+    throw new Error("If1");
   }
   if (false) {
-    throw "If2";
+    throw new Error("If2");
   } else {
   }
 } ());

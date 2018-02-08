@@ -4,12 +4,12 @@
   var x;
   with (o) {
     if (delete x)
-      throw "IdentifierDelete1";
+      throw new Error("IdentifierDelete1");
     if (! delete a)
-      throw "IdentifierDelete2";
+      throw new Error("IdentifierDelete2");
     if (! delete a$strange$id)
-      throw "IdentifierDelete3";
+      throw new Error("IdentifierDelete3");
   }
   if ("a" in o)
-    throw "IdentifierDelete4";
+    throw new Error("IdentifierDelete4");
 } ());

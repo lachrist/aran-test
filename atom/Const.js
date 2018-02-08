@@ -7,8 +7,8 @@
     } catch (_) {
     }
     if (c !== "foo")
-      throw "Const1";
+      throw new Error("Const1");
   }
   if (typeof c !== "undefined")
-    throw "Const2";
+    throw new Error("Const2");
 } ());

@@ -1,9 +1,17 @@
 
+const Aran = require("aran");
+const Acorn = require("acorn");
+const Astring = require("astring");
+const Print = require("./util/print.js");
+
 const String = global.String;
 const WeakMap = global.WeakMap;
 const TypeError = global.TypeError;
 const Error = global.Error;
+const Proxy = global.Proxy;
+const Function = global.Function;
 const eval = global.eval;
+const $eval = global.eval;
 const Reflect_apply = Reflect.apply;
 const Reflect_construct = Reflect.construct;
 const Reflect_getPrototypeOf = Reflect.getPrototypeOf;
@@ -15,132 +23,60 @@ const Reflect_set = Reflect.set;
 const JSON_stringify = JSON.stringify;
 const Object_create = Object.create;
 const Array_isArray = Array.isArray;
-const Array_prototype_map = Array.prototype.map;
-const Array_prototype_includes = Array.prototype.includes;
 const WeakMap_prototype_get = WeakMap.prototype.get;
 const WeakMap_prototype_set = WeakMap.prototype.set;
 const WeakMap_prototype_has = WeakMap.prototype.has;
 
-const proxies = new WeakMap();
-const Proxy = global.Proxy = ((() => {
-  const RealProxy = global.Proxy;
-  return function Proxy (target, traps) {
-    if (!new.target)
-      throw new TypeError("Constructor Proxy requires 'new'");
-    const proxy = new RealProxy(target, traps);
-    Reflect_apply(WeakMap_prototype_set, proxies, [proxy, {target:target, traps:traps}]);
-    return proxy;
-  };
-}) ());
-
-const bindings = new WeakMap();
-bindings.set(global, "global");
-bindings.set(Object.prototype, "Object.prototype");
-bindings.set(Array.prototype, "Array.prototype");
-bindings.set(Function.prototype, "Function.prototype");
-bindings.set(String.prototype, "String.prototype");
-bindings.set(Number.prototype, "Number.prototype");
-bindings.set(Boolean.prototype, "Boolean.prototype");
-bindings.set(Error.prototype, "Error.prototype");
-
 module.exports = (aran, join) => {
 
-  let callstack = [global];
-  let stack = [];
-  const internals = new WeakMap();
-
-  const reify = (serial, value) => {
-    const store = [];
-    const jsonify = (value) => {
-      if (Reflect_apply(WeakMap_prototype_has, bindings, [value]))
-        return Reflect_apply(WeakMap_prototype_get, bindings, [value]);
-      if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string")
-        return value;
-      if (value === void 0)
-        return ["undefined"];
-      let pointer = 0;
-      while (store[pointer] !== value && pointer < store.length)
-        pointer++;
-      if (pointer === store.length)
-        store[pointer] = value;
-      return ["pointer", pointer];
-    };
-    const state = {
-      serial: serial,
-      value: jsonify(value),
-      stack: Reflect_apply(Array_prototype_map, stack, [jsonify]),
-      callstack: Reflect_apply(Array_prototype_map, callstack, [jsonify]),
-      store: {}
-    };
-    for (let index = 0; index < store.length; index++) {
-      if (typeof store[index] === "symbol") {
-        state.store[index] = {
-          type: "symbol",
-          name: String(store[index])
-        };
-      } else if (Reflect_apply(WeakMap_prototype_has, proxies, [store[index]])) {
-        const inner = Reflect_apply(WeakMap_prototype_get, proxies, [store[index]]);
-        astate.store[index] = {
-          type: "proxy",
-          target: jsonify(inner.target),
-          traps: jsonify(inner.traps)
-        };
-      } else {
-        state.store[index] = {
-          type: Array.isArray(store[index]) ? "array" : typeof store[index],
-          prototype: jsonify(Reflect_getPrototypeOf(store[index])),
-          dictionnary: Reflect_apply(Array_prototype_map, Reflect_ownKeys(store[index]), [(key) => {
-            const descriptor = Reflect_getOwnPropertyDescriptor(store[index], key);
-            descriptor.key = key;
-            if ("value" in descriptor) {
-              descriptor.value = jsonify(descriptor.value)
-            } else {
-              descriptor.get = jsonify(descriptor.get);
-              descriptor.set = jsonify(descriptor.set);
-            }
-            return descriptor;
-          }])
-        };
-        if (Reflect_apply(WeakMap_prototype_has, internals, [store[index]])) {
-          const inner = Reflect_apply(WeakMap_prototype_get, internals, [store[index]]);
-          state.store[index].frame = jsonify(inner.frame);
-          state.store[index].serial = jsonify(inner.serial);
-          state.store[index].location = jsonify(aran.node(inner.serial).loc);
-        }
-      }
+  const traps = Object_create(null);
+  const substitutes = new WeakMap();
+  Reflect_apply(WeakMap_prototype_set, substitutes, [Function, function Function () {
+    if (arguments.length === 0) {
+      var script = "function () {}";
+    } else if (arguments.length === 1) {
+      var script = "function () {"+arguments[0]+"}";
+    } else {
+      var script = "function ("+arguments[0];
+      for (let index=1, last = arguments.length-1; index < last; index++)
+        script += ","+arguments[index];
+      script += "){"+arguments[arguments.length-1]+"}";
     }
-    return state;
-  };
+    return $eval(join(script, null));
+  }]);
+  Reflect_apply(WeakMap_prototype_set, substitutes, [eval, function eval (script) {
+    return $eval(join(script, null));
+  }]);
 
-  const error = (message, serial, value) => new Error(message+"\n"+JSON.stringify(reify(serial, value), null, 2));
+  ///////////
+  // State //
+  ///////////
+
+  const callstack = [];
+  const scopes = new WeakMap();
 
   /////////////////
   // Environment //
   /////////////////
 
-  const enter = (tag, serial) => {
-    frame = Object_create(callstack[callstack.length-1]);
-    frame["@tag"] = tag;
-    frame["@serial"] = serial;
-    callstack[callstack.length-1] = frame;
+  const enter = (type, serial, value) => {
+    const call = callstack[callstack.length-1];
+    return call[call.length] = {type:type,serial:serial,value:value};
   };
 
-  const leave = (tag, serial) => {
-    const frame = callstack[callstack.length-1];
-    if (tag !== frame["@tag"])
-      throw error("Environments tag mismatch; expected: "+frame["@tag"]+", got: "+tag, serial, null);
-    if (serial !== frame["@serial"])
-      throw error("Environments serial mismatch; expected: "+frame["@serial"]+", got: "+serial, serial, null);
-    callstack[callstack.length-1] = Reflect_getPrototypeOf(frame);
+  const leave = (type, serial) => {
+    const call = callstack[callstack.length-1];
+    if (type !== call[call.length-1].type])
+      throw new Error("["+serial+"] Environment type mismatch. Expected: "+type+", got: "+call[call.length-1].type+".");
+    if (serial !== call[call.length-1].serial)
+      throw new Error("["+serial+"] Environments serial mismatch. Expected: "+serial+", got: "+call[call.length-1].serial+".");
+    call--;
   };
 
-  const lookup = (node, serial) => {
-    console.log("lookup", node.AranIndex, serial);
-    while (node.AranIndex !== serial) {
-      node = node.AranParent;
-      if (!node)
-        throw error("Unmatched serial: "+frame["@serial"], serial, null);
-    }
+  const lookup = (node, serial1, serial2) => {
+    while (node.AranIndex !== serial1)
+      if (!(node = node.AranParent))
+        throw new Error("["+serial1+"] Unmatched node serial: "+serial2+".");
     return node;
   }
 
@@ -148,12 +84,18 @@ module.exports = (aran, join) => {
   // Stack //
   ///////////
 
-  const produce = (value, reason, serial) => stack[stack.length] = value;
+  const produce = (value, serial) => {
+    const call = callstack[callstack.length-1];
+    return call[call.length] = {type:"value",serial:serial,value:value};
+  };
 
-  const consume = (value, reason, serial) => {
-    if (value !== stack[stack.length-1])
-      throw error("Stack consume mismatch ("+reason+")", serial, value);
-    stack.length--;
+  const consume = (value, serial) => {
+    const call = callstack[callstack.length-1];
+    if (call[call.length-1].type !== "value")
+      throw new Error("["+serial+"] Cannot consume: "+call[call.length-1].type+".");
+    if (call[call.length-1].value !== value)
+      throw new Error("["+serial+"] Consume mismatch. Expected: "+Print(value)+", got: "+Print(call[call.length-1].value)+".");
+    call.length--;
     return value;
   };
 
@@ -161,21 +103,21 @@ module.exports = (aran, join) => {
   // Specials //
   //////////////
 
-  const traps = {};
-
   traps.copy = (position, value, serial) => {
-    if (value !== stack[stack.length-1])
-      throw error("Stack copy mismatch", serial, value);
-    for (let index = stack.length; index >= stack.length - position; index--)
-      stack[index] = stack[index-1];
-    stack[stack.length-1-position] = stack[stack.length-1];
+    consume(value, serial);
+    produce(value, serial);
+    const call = callstack[callstack.length-1];
+    position = call.length - position;
+    for (let index = call.length; index > position; index--)
+      call[index] = call[index-1];
+    call[position] = call[stack.length-1];
     return value;
   };
 
   traps.set = (value1, value2, value3, serial) => {
-    consume(value3, "set-value", serial);
-    consume(value2, "set-key", serial);
-    consume(value1, "set-object", serial);
+    consume(value3, serial);
+    consume(value2, serial);
+    consume(value1, serial);
     value1[value2] = value3;
   };
 
@@ -184,158 +126,269 @@ module.exports = (aran, join) => {
   ///////////////
 
   traps.read = (identifier, value, serial) => {
-    if (value !== callstack[callstack.length-1][identifier])
-      throw error("Environment read mismatch: "+identifier, serial, value);
-    return produce(value, "read", serial);
+    const call = callstack[callstack.length-1];
+    let index = call.length;
+    while (index--)
+      if (call[index].type !== "value" && identifier in call[index].value) {
+        if (value !== call[index].value[identifier])
+          throw new Error("["+serial"] Environment read mismatch: "+identifier+". Expected: "+Print(value)+", got: "+Print(call[index].value[identifier])+".");
+        if (call[index].value === global && Reflect_apply(WeakMap_prototype_has, substitutes, [value]))
+          return produce(Reflect_apply(WeakMap_prototype_get, substitutes, [value]));
+        return produce(value, serial);
+      }
+    throw new Error("["+serial+"] Environment read failure: "+identifier+".");
   };
 
-  traps.builtin = (identifier, value, serial) => produce(value, "builtin", serial);
+  traps.builtin = (identifier, value, serial) => produce(value, serial);
 
-  traps.this = (value, serial) => produce(value, "this", serial);
+  traps.this = (value, serial) => produce(value, serial);
 
-  traps.newtarget = (value, serial) => produce(value, "newtarget", serial);
+  traps.newtarget = (value, serial) => produce(value, serial);
 
-  traps.arguments = (values, serial) => produce(values, "arguments", serial);
+  traps.arguments = (values, serial) => produce(values, serial);
 
-  traps.primitive = (value, serial) => produce(value, "primitive", serial);
+  traps.primitive = (value, serial) => produce(value, serial);
 
-  traps.regexp = (value, serial) => produce(value, "regexp", serial);
+  traps.regexp = (value, serial) => produce(value, serial);
 
   traps.closure = (value, serial) => {
     let wrapper = function () {
-      if (callstack.length > 1 || callstack[0] !== global)
+      if (callstack.length)
         return new.target ? Reflect_construct(value, arguments) : Reflect_apply(value, this, arguments);
       try {
         var result = new.target ? Reflect_construct(value, arguments) : Reflect_apply(value, this, arguments);
-        if (stack.length)
-          throw error("Stack poluted", serial, null);
-        if (callstack.length !== 1 || callstack[0] !== global)
-          throw error("CallStack poluted", serial, null);
       } catch (error) {
-        stack = [];
-        callstack = [global];
+        callstack.length = 0;
         throw error;
       }
+      if (callstack.length)
+        throw new Error("["+serial"] Stack poluted.");
+      return result;
     };
-    Reflect_apply(WeakMap_prototype_set, internals, [wrapper, {frame:callstack[callstack.length-1], serial:serial}]);
-    return produce(wrapper, "closure", serial);
+    const call = callstack[callstack.length-1];
+    let scope = [];
+    for (let index = 0; length = call.length; index < length; index++)
+      if (call[index].type !== "value")
+        scope[scope.length] = call[index];
+    Reflect_apply(WeakMap_prototype_set, scopes, [wrapper, scope]);
+    return produce(wrapper, serial);
   };
 
-  traps.discard = (identifier, value, serial) => produce(value, "discard", serial);
+  traps.discard = (identifier, value, serial) => produce(value, serial);
 
-  // Either an error is thrown or it is not.
-  // If an error is thrown the catch block will clean the environment
-  // If not, the environment is cleaned in the usual way.
   traps.catch = (value, serial) => {
     while (callstack.length) {
-      for (let frame = callstack[callstack.length-1]; frame; frame = Reflect_getPrototypeOf(frame)) {
-        if (frame["@tag"] === "try") {
-          callstack[callstack.length-1] = Reflect_getPrototypeOf(frame);
-          enter("catch", serial);
-          return produce(value, "catch", serial);
+      const call = callstack[callstack.length-1];
+      while (call.length) {
+        const frame = call[call.length-1];
+        if (frame.type === "closure") {
+          call.length = 0;
+        } else {
+          call.length--;
+          if (frame.type === "try") {
+            enter("catch", serial, Object_create(null));
+            return produce(value, serial);
+          }
         }
       }
       callstack.length--;
     }
-    throw error("Unmatched try/catch", serial, null);
+    throw new Error("["+serial+"] Could not find surrounding try block.");
   };
 
   ///////////////
   // Consumers //
   ///////////////
 
-  traps.drop = (value, serial) => consume(value, "drop", serial);
+  traps.drop = (value, serial) => consume(value, serial);
 
-  traps.test = (value, serial) => consume(value, "test", serial);
+  traps.test = (value, serial) => consume(value, serial);
 
-  traps.throw = (value, serial) => consume(value, "throw", serial);
+  traps.throw = (value, serial) => consume(value, serial);
 
-  traps.terminate = (success, value, serial) => {
-    for (let frame = callstack[0]; Reflect_getPrototypeOf(frame) !== global; frame = Reflect_getPrototypeOf(frame))
-      var initial = frame["@serial"] === serial;
-    if (success) {
-      leave(aran.node(serial).AranStrict ? "closure" : "block", serial);
-      consume(value, "terminate", serial);
-      if (initial) {
-        if (stack.length)
-          throw error("Stack poluted", serial, null);
-        if (callstack.length !== 1 || callstack[0] !== global)
-          throw error("Callstack poluted", serial, null);
+  traps.terminate = ((() => {
+    const proxies = new WeakMap();
+    const bindings = new WeakMap();
+    (names || [
+      "global",
+      "Object.prototype",
+      "Array.prototype",
+      "Function.prototype",
+      "String.prototype",
+      "Boolean.prototype",
+      "Error.prototype"
+    ]).forEach((name) => {
+      Reflect_apply(WeakMap_prototype_set, bindings, [$eval(name), ["builtin", name]]);
+    });
+    Reflect_apply(WeakMap_prototype_set, substitutes, [Proxy, function Proxy (target, traps) {
+      if (!new.target)
+        throw new TypeError("Constructor Proxy requires 'new'");
+      const proxy = new Proxy(target, traps);
+      Reflect_apply(WeakMap_prototype_set, proxies, [proxy, {target:target, traps:traps}]);
+      return proxy;
+    }]);
+    const reify = (value) => {
+      const store = [];
+      const jsonify = (value) => {
+        if (Reflect_apply(WeakMap_prototype_has, bindings, [value]))
+          return Reflect_apply(WeakMap_prototype_get, bindings, [value]);
+        if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string")
+          return value;
+        if (value === void 0)
+          return ["undefined"];
+        let pointer = 0;
+        while (store[pointer] !== value && pointer < store.length)
+          pointer++;
+        if (pointer === store.length)
+          store[pointer] = value;
+        return ["pointer", pointer];
+      };
+      const state = {
+        value: value,
+        callstack: [],
+        store: {}
+      };
+      if (success)
+        state.value = jsonify(value);
+      else if (error && stack in error)
+        state.message = error.stack;
+      else
+        state.message = Print(error);
+      for (let index1 = 0; length1 = callstack.length; index1 < length1; index1++) {
+        let call = callstack[index1] = [];
+        for (let index2 = 0; length2 = call.length; index2 < length2; index2++)
+          call[index2] = {
+            type: call[index2].type,
+            serial: call[index2].serial,
+            value: jsonify(call[index2].value)
+          };
       }
-    } else if (initial) {
-      stack = [];
-      callstack = [global];
-    }
-    return value;
-  };
-
-  traps.return = (value, serial) => {
-    let node = aran.node(serial);
-    for (var frame = callstack[callstack.length-1]; frame["@tag"] !== "closure"; frame = Reflect_getPrototypeOf(frame))
-      node = lookup(node, frame["@serial"]);
-    lookup(node, frame["@serial"]);
-    callstack.length--;
-    return consume(value, "return", serial);
-  };
-
-  traps.write = (identifier, value, serial) => {
-    for (let frame = callstack[callstack.length-1]; frame !== global; frame = Reflect_getPrototypeOf(frame))
-      if (Reflect_apply(Array_prototype_includes, Reflect_ownKeys(frame), [identifier]))
-        return frame[identifier] = consume(value, "write", serial);
-    return consume(value, "write", serial);
-  };
-
-  traps.declare = (kind, identifier, value, serial) => {
-    let frame = callstack[callstack.length-1];
-    if (kind === "var")
-      while (frame["@tag"] !== "closure" && frame !== global)
-        frame = Reflect_getPrototypeOf(frame);
-    if (frame !== global)
-      Reflect_defineProperty(frame, identifier, {
-        enumerable: true,
-        configurable: kind !== "const",
-        writable: kind !== "const",
-        value: value
-      });
-    return consume(value, "declare", serial);
-  };
-
-  ((() => {
-    const ptraps = {
-      get: (target, key, receiver) => {
-        if (key === "@tag")
-          return "with";
-        if (key === "@serial")
-          return target.serial;
-        if (key in target.object)
-          return Reflect_get(target.object, key, receiver);
-        return Reflect_get(target.prototype, key, receiver);
-      },
-      set: (target, key, value, receiver) => {
-        if (key in target.object)
-          return Reflect_set(target.object, key, receiver);
-        return Reflect_set(target.prototype, key, receiver);
-      },
-      ownKeys: (target) => {
-        let keys = [];
-        for (let key in target.object)
-          keys[keyts.length] = key;
-        return keys;
-      },
-      getPrototypeOf: (target) => target.prototype
+      for (let index = 0; index < store.length; index++) {
+        if (typeof store[index] === "symbol") {
+          state.store[index] = {
+            type: "symbol",
+            name: String(store[index])
+          };
+        } else if (Reflect_apply(WeakMap_prototype_has, proxies, [store[index]])) {
+          const inner = Reflect_apply(WeakMap_prototype_get, proxies, [store[index]]);
+          state.store[index] = {
+            type: "proxy",
+            target: jsonify(inner.target),
+            traps: jsonify(inner.traps)
+          };
+        } else {
+          state.store[index] = {
+            type: Array.isArray(store[index]) ? "array" : typeof store[index],
+            prototype: jsonify(Reflect_getPrototypeOf(store[index])),
+            dictionnary: Reflect_apply(Array_prototype_map, Reflect_ownKeys(store[index]), [(key) => {
+              const descriptor = Reflect_getOwnPropertyDescriptor(store[index], key);
+              descriptor.key = key;
+              if ("value" in descriptor) {
+                descriptor.value = jsonify(descriptor.value)
+              } else {
+                descriptor.get = jsonify(descriptor.get);
+                descriptor.set = jsonify(descriptor.set);
+              }
+              return descriptor;
+            }])
+          };
+          if (Reflect_apply(WeakMap_prototype_has, scopes, [store[index]])) {
+            const scope = Reflect_apply(WeakMap_prototype_get, scopes, [store[index]]);
+            state.store[index].scope = [];
+            for (let index = 0; index < scope.length; index++)
+              state.store[index].scope[index] = jsonify(scope[index]);
+          }
+        }
+      }
+      return state;
     };
-    traps.with = (value, serial) => {
-      callstack[callstack.length-1] = new Proxy({
-        object: value,
-        parent: callstack[callstack.length-1]
-      }, ptraps);
-      return consume(value, "with", serial);
+    return (success, value, serial) => {
+      const launch = callstack[0][0].serial === serial;
+      try {
+        if (sucess) {
+          consume(value, serial);
+          if (aran.node(serial).AranParent) {
+            leave(aran.node(serial).AranStrict ? "closure" : "block", serial);
+            return value;
+          }
+          leave("with", serial);
+          if (callstack[callstack.length-1].length > 0 || (launch && callstack.length > 1))
+            throw new Error("["+serial+"] Callstack poluted");
+          callstack.length--;
+          return launch ? reify(value) : value;
+        }
+      } catch (error) {
+        value = error;
+      }
+      if (!launch)
+        return value;
+      value = reify(value);
+      callstack.length = 0;
+      return value;
     };
   }) ());
 
+  traps.return = (value, serial) => {
+    consume(value, serial);
+    const call = callstack[callstack.length-1];
+    let node = aran.node(serial);
+    let index = call.length;
+    while (index--) {
+      node = lookup(node, call[index].serial, serial);
+      if (call[index].type === "closure") {
+        callstack.length--;
+        return value;
+      }
+    }
+    throw error("["+serial"] Could not find surrounding closure.");
+  };
+
+  traps.write = (identifier, value, serial) => {
+    consume(value, serial);
+    const call = callstack[callstack.length-1];
+    let index = call.length;
+    while (index--)
+      if (call[index].type !== "value" && identifier in call[index].value) {
+        if (call[index].type !== "with")
+          call[index].value[identifier] = value;
+        return value;
+      }
+    if (aran.node(serial).AranStrict)
+      throw new Error("["+serial+"] Environment write failure: "+identifier+".");
+    return value;
+  };
+
+  traps.declare = (kind, identifier, value, serial) => {
+    consume(value, serial);
+    const call = callstack[callstack.length-1];
+    let index = call.length;
+    if (kind === "var")
+      while (index--)
+        if (call[index].type === "closure")
+          return call[index].value[identifier] = value;
+    else
+      while (index--)
+        if (call[index].type !== "value" && call[index].type !== "with") {
+          Reflect_defineProperty(call[index].value, identifier, {
+            enumerable: true,
+            configurable: false,
+            writable: kind !== "const",
+            value: value
+          });
+          return value;
+        }
+    return value;
+  };
+
+  traps.with = (value, serial) => {
+    consume(value, serial);
+    enter("with", serial, value);
+    return value;
+  };
+
   traps.eval = (value, serial) => {
-    consume(value, "eval", serial);
-    return join(value, aran.node(serial).AranStrict);
+    consume(value, serial);
+    return join(value, aran.node(serial));
   };
 
   ///////////////
@@ -343,46 +396,56 @@ module.exports = (aran, join) => {
   ///////////////
 
   traps.callee = (value, serial) => {
-    callstack[callstack.length] = Reflect_apply(WeakMap_prototype_get, internals, [value]).frame;
-    enter("closure", serial);
+    const scope = Reflect_apply(WeakMap_prototype_get, environments, [value]);
+    const call = [];
+    for (let index = 0; length = scope.length; index < length; index++)
+      call[index] = scope[index];
+    callstack[callstack.length] = call;
+    enter("closure", serial, Object.create(null));
   };
 
   traps.block = (serial) => {
-    enter("block", serial);
+    enter("block", serial, Object.create(null));
   };
 
   traps.try = (serial) => {
-    enter("try", serial);
+    enter("try", serial, Object_create(null));
   };
 
   traps.finally = (serial) => {
-    enter("finally", serial);
+    enter("finally", serial, Object_create(null));
   };
 
   traps.label = (label, boolean, serial) => {
-    enter("label", serial);
-    callstack[callstack.length-1]["@label"] = (boolean ? "Continue" : "Break") + (label||"");
+    label = (boolean ? "Continue" : "Break") + (label||"")
+    enter("label", serial, Object_create(null))["@label"] = label;
   };
 
-  traps.leave = (tag, serial) => {
-    leave(tag, serial);
+  traps.leave = (type, serial) => {
+    leave(type, serial);
   };
 
   traps.program = (serial) => {
-    enter(aran.node(serial).AranStrict ? "closure" : "block", serial);
+    if (aran.node(serial).AranParent)
+      return enter(aran.node(serial).AranStrict ? "closure" : "block", serial, null);
+    callstack[callstack.length] = [];
+    enter("with", serial, global);
   };
 
   traps.break = (label, boolean, serial) => {
     label = (boolean ? "Continue" : "Break") + (label||"");
     let node = aran.node(serial);
-    for (var frame = callstack[callstack.length-1]; frame["@label"] !== label; frame = Reflect_getPrototypeOf(frame)) {
-      if (frame["@tag"] === "closure" || frame === global)
-        throw error("Unmatched label: "+label, serial, null);
-      node = lookup(node, frame["@serial"]);
+    const call = callstack[callstack.length-1];
+    while (call.length) {
+      const frame = call[call.length-1];
+      if (frame.type === "closure")
+        throw new Error("["+serial"] Could not find surrounding label block: "+label+" (hit closure). ");
+      call.length--;
+      node = lookup(node, frame.serial);
+      if (frame.type === "label" && frame.value["@label"] === label)
+        return;
     }
-    lookup(node, frame["@serial"]);
-    console.log("break", frame, Reflect_getPrototypeOf(frame));
-    callstack[callstack.length-1] = Reflect_getPrototypeOf(frame);
+    throw new Error("["+serial+"] Could not find surrounding label block: "+label+" (hit call)");
   };
 
   ///////////////
@@ -391,64 +454,71 @@ module.exports = (aran, join) => {
 
   traps.invoke = (value1, value2, values, serial) => {
     for (let index = values.length-1; index >= 0; index--)
-      consume(values[index], "invoke-argument-"+index, serial);
-    consume(value2, "invoke-key", serial);
-    consume(value1, "invoke-object", serial);
-    return produce(Reflect_apply(value1[value2], value1, values), "invoke", serial);
+      consume(values[index], serial);
+    consume(value2, serial);
+    consume(value1, serial);
+    return produce(Reflect_apply(value1[value2], value1, values), serial);
   };
 
   traps.construct = (value, values, serial) => {
     for (let index = values.length-1; index >= 0; index--)
-      consume(values[index], "construct-argument-"+index, serial);
-    consume(value, "construct-constructor", serial);
-    return produce(Reflect_construct(value, values), "construct", serial);
+      consume(values[index], serial);
+    consume(value, serial);
+    return produce(Reflect_construct(value, values), serial);
   };
 
   traps.apply = (value, values, serial) => {
     for (let index = values.length-1; index >= 0; index--)
-      consume(values[index], "apply-argument-"+index, serial);
-    consume(value, "apply-callee", serial);
-    return produce(Reflect_apply(value, aran.node(serial).AranStrict ? void 0 : global, values), "apply", serial);
+      consume(values[index], serial);
+    consume(value, serial);
+    return produce(Reflect_apply(value, aran.node(serial).AranStrict ? void 0 : global, values), serial);
   };
 
   traps.unary = (operator, value, serial) => {
-    consume(value, "unary-argument", serial);
-    return produce(eval(operator+" value"), "unary", serial)
+    consume(value, serial);
+    return produce(eval(operator+" value"), serial)
   };
 
   traps.binary = (operator, value1, value2, serial) => {
-    consume(value2, "binary-right", serial);
-    consume(value1, "binary-left", serial);
-    return produce(eval("value1 "+operator+" value2"), "binary", serial);
+    consume(value2, serial);
+    consume(value1, serial);
+    return produce(eval("value1 "+operator+" value2"), serial);
   };
 
   traps.get = (value1, value2, serial) => {
-    consume(value2, "get-key", serial);
-    consume(value1, "get-object", serial);
-    return produce(value1[value2], "get", serial);
+    consume(value2, serial);
+    consume(value1, serial);
+    let value3 = value1[value2];
+    if (Reflect_apply(WeakMap_prototype_has, substitutes, [value3]))
+      return produce(Reflect_apply(WeakMap_prototype_get, substitutes, [value3]));
+    return produce(value3, serial);
   };
 
   exports.delete = (value1, value2, serial) => {
-    consume(value2, "delete-key", serial);
-    consume(value1, "delete-object", serial);
-    return produce(delete value1[value2], "delete", serial);
+    consume(value2, serial);
+    consume(value1, serial);
+    return produce(delete value1[value2], serial);
   };
 
   traps.array = (values, serial) => {
     for (let index = values.length-1; index >= 0; index--)
-      consume(values[index], "array-element-"+index, serial);
-    return produce(values, "array", serial);
+      consume(values[index], serial);
+    return produce(values, serial);
   };
 
   traps.object = (properties, serial) => {
     const result = {};
     for (let index = properties.length-1; index >= 0; index--) {
-      consume(properties[index][1], "object-key-"+index, serial);
-      consume(properties[index][0], "object-value-"+index, serial);
+      consume(properties[index][1], serial);
+      consume(properties[index][0], serial);
       result[properties[index][0]] = properties[index][1];
     }
-    return produce(result, "object", serial);
+    return produce(result, serial);
   };
+
+  ///////////////
+  // Interface //
+  ///////////////
 
   return traps;
 

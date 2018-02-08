@@ -1,7 +1,7 @@
 
 (function () {
   if (typeof 1 !== "number")
-    throw "Typeof2";
+    throw new Error("Typeof2");
   if (typeof a$very$strange$id !== "undefined")
-    throw "Typeof1";
+    throw new Error("Typeof1");
 } ())
