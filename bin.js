@@ -1,5 +1,6 @@
 
 const Fs = require("fs");
+const Util = require("util");
 const Path = require("path");
 const AranTest = require("./main.js");
 
@@ -18,24 +19,18 @@ const trail = (string, size) => {
 
 if (/\.js$/.test(process.argv[3])) {
   const Advice = require(Path.resolve(process.argv[2]));
-  const test = Advice()(Fs.readFileSync(process.argv[3], "utf8"));
+  const test = AranTest(Advice, Fs.readFileSync(process.argv[3], "utf8"));
   console.log(test.script);
-  if ("value" in test) {
-    console.log("success", test.value);
-  } else {
-    console.log("failure", test.error);
-  }
+  console.log(test.success ? "Success" : "Failure");
+  console.log(Util.inspect(test.value, {depth:10,colors:true}));
 } else {
   const Advice = require(Path.resolve(process.argv[2]));
   const failures = [];
   Fs.readdirSync(process.argv[3]).filter(sanitize).forEach((filename) => {
-    const test = Advice()(Fs.readFileSync(process.argv[3], "utf8"));
-    if ("value" in test) {
-      console.log(trail(filename, 25), "success", test.value);
-    } else {
-      console.log(trail(filename, 25), "failure", test.error);
-      failures[failures.length] = filename;
-    }
+    const test = AranTest(Advice, Fs.readFileSync(trailing(process.argv[3])+filename, "utf8"));
+    console.log(trail(filename, 25), test.success ? "Success" : "Failure");
+    if (!test.success)
+      failures.push(filename);
   });
   if (failures.length) {
     console.log("\nFailures:\n  "+failures.join("\n  "));

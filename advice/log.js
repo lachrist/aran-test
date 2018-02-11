@@ -1,39 +1,32 @@
 
-const Aran = require("aran");
-const Acorn = require("acorn");
-const Astring = require("astring");
-const ForwardTraps = require("../forward-traps.js");
+const Forward = require("./shadow.js");
+const Print = require("./util/print.js");
 
-const Reflect_apply = Reflect.apply;
-const Object_create = Object_create;
+const Reflect_ownKeys = global.Reflect.ownKeys;
+const String_prototype_substring = global.String.prototype.substring;
+const Reflect_apply = global.Reflect.apply;
 const console = global.console;
-const console_log = console.log;
+const console_log = global.console.log;
+
+const format = (string, length) => {
+  if (string.length > length)
+    return Reflect_apply(String_prototype_substring, string, [0, length]);
+  while (string.length < length)
+    string += " ";
+  return string;
+}
 
 module.exports = (aran, join) => {
-  const traps = Object_create(null);
-  traps.eval = (script, serial) => join(script, aran.node(serial));
-  traps.apply = (value, values, serial) => Reflect_apply(value, aran.node(serial).AranStrict ? void 0 : global, values);
-  const keys = Reflect.ownKeys(global.META);
-  keys.forEach((key) => {
-    global.META[key] = function () {
-      const serial = arguments[arguments.length-1];
-      const location = aran.node(serial).loc.start;
-      const message = key+serial+"@"+location.line+":"+location.column;
-      for (let index = 1, last = arguments.length-1; index < last; index++)
-        message += " "+Print(arguments[index]);
+  const ftraps = Forward(aran, join);
+  const traps = {};
+  Reflect_ownKeys(ftraps).forEach((key) => {
+    traps[key] = function () {
+      let message = format(key, 10) + " | " + format(""+arguments[arguments.length-1], 3);
+      for (let index = 0; index < 4; index++)
+        message += " | "+ format(index < arguments.length-1 ? Print(arguments[index]) : "", 20);
       Reflect_apply(console_log, console, [message]);
       return Reflect_apply(ftraps[key], null, arguments);
     };
   });
-  return (script1) => {
-    const script2 = join(script1, null);
-    try {
-      return {script:script2, value:Jsonify($eval(script2))};
-    } catch (error) {
-      return {script:script2, value:}
-    }
-    console.log(script2);
-
-  }
-  return Run(join);
+  return traps;
 };

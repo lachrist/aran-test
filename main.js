@@ -9,7 +9,7 @@ module.exports = (Advice, script1) => {
     output: "EstreeValid"
   });
   const join = (script, parent) => Astring.generate(aran.join(
-    Acorn.parse(script, {loc:true}),
+    Acorn.parse(script, {locations:true}),
     Object.keys(global.META),
     parent));
   global.META = Advice(aran, join);
@@ -17,12 +17,14 @@ module.exports = (Advice, script1) => {
   try {
     return {
       script: script2,
+      success: true,
       value: global.eval(script2)
     };
   } catch (error) {
     return {
       script: script2,
-      error: error
+      success: false,
+      value: error
     };
   }
 };

@@ -1,2 +1,2 @@
 
-while (true) break;
+for (let x of ["foo"]) {}
