@@ -4,8 +4,12 @@ const Reflect_apply = global.Reflect.apply;
 const Reflect_construct = global.Reflect.construct;
 const Array_prototype_forEach = global.Array.prototype.forEach;
 
-const producers = [
+const modifiers = [
+  // stack //
   "copy",
+  "drop",
+  "swap",
+  // producers //
   "read",
   "builtin",
   "this",
@@ -15,12 +19,10 @@ const producers = [
   "primitive",
   "regexp",
   "closure",
-  "discard"
-];
-
-const consumers = [
+  "discard",
+  // consumers //
+  "completion",
   "drop",
-  "terminal",
   "success",
   "failure",
   "test",
@@ -29,7 +31,7 @@ const consumers = [
   "eval",
   "with",
   "write",
-  "declare"
+  "declare",
 ];
 
 const informers = [
@@ -63,8 +65,7 @@ const pass = function () { return arguments[arguments.length-2] }
 
 module.exports = (aran, join) => {
   const traps = {};
-  Reflect_apply(Array_prototype_forEach, producers, [(key) => traps[key] = pass]);
-  Reflect_apply(Array_prototype_forEach, consumers, [(key) => traps[key] = pass]);
+  Reflect_apply(Array_prototype_forEach, modifiers, [(key) => traps[key] = pass]);
   Reflect_apply(Array_prototype_forEach, informers, [(key) => traps[key] = empty]);
   traps.eval = (value, serial) => join(value, aran.node(serial));
   traps.apply = (value, values, serial) => Reflect_apply(value, aran.node(serial).AranStrict ? void 0 : global, values);

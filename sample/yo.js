@@ -1,2 +1,3 @@
 
-for (let x of ["foo"]) {}
+function f () {}
+f (...[], "foo");
